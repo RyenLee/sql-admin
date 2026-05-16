@@ -1,9 +1,9 @@
-/dist/
 /target/
 /Cargo.lock
 .env
 .DS_Store
 /logs/
-/data/
+/data/*
 /.vscode/
 node_modules/
+dist/

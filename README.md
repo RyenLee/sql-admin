@@ -56,8 +56,9 @@ Install via [vcpkg](https://github.com/microsoft/vcpkg) or use pre-built binarie
 1. Clone the repository:
 
 ```bash
-git clone https://github.com/your-repo/liteadmin.git
-cd liteadmin
+git clone https://github.com/RyenLee/sql-admin.git
+cd sql-admin
+cp .env.example .env
 ```
 
 2. Build the backend:
@@ -103,7 +104,7 @@ trunk serve --port 8080
 
 | Variable       | Description                             | Default               |
 | -------------- | --------------------------------------- | --------------------- |
-| `DATABASE_URL` | SQLite database for storing connections | `./data/sql_admin.db` |
+| `DATABASE_URL` | SQLite database for storing connections | `./data/sql_admin.sqlite3` |
 | `SERVER_HOST`  | Backend server host                     | `0.0.0.0`             |
 | `SERVER_PORT`  | Backend server port                     | `3000`                |
 | `RUST_LOG`     | Logging level                           | `info`                |
