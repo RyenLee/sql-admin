@@ -2,6 +2,8 @@
 
 A lightweight, modern SQL database administration tool built with Rust. LiteAdmin provides a web-based interface for managing database connections, executing SQL queries, and exploring database structures across multiple database types.
 
+![preview](./dist/pic.gif)
+
 ## Features
 
 - **Multi-Database Support**: Connect to PostgreSQL, MySQL, and SQLite databases
@@ -102,12 +104,12 @@ trunk serve --port 8080
 
 ### Environment Variables
 
-| Variable       | Description                             | Default               |
-| -------------- | --------------------------------------- | --------------------- |
+| Variable       | Description                             | Default                    |
+| -------------- | --------------------------------------- | -------------------------- |
 | `DATABASE_URL` | SQLite database for storing connections | `./data/sql_admin.sqlite3` |
-| `SERVER_HOST`  | Backend server host                     | `0.0.0.0`             |
-| `SERVER_PORT`  | Backend server port                     | `3000`                |
-| `RUST_LOG`     | Logging level                           | `info`                |
+| `SERVER_HOST`  | Backend server host                     | `0.0.0.0`                  |
+| `SERVER_PORT`  | Backend server port                     | `3000`                     |
+| `RUST_LOG`     | Logging level                           | `info`                     |
 
 ### Creating Initial Admin
 

@@ -6,4 +6,4 @@
 /data/*
 /.vscode/
 node_modules/
-dist/
+crates/frontend/dist/
