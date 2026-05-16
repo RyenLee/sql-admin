@@ -1,0 +1,9 @@
+/dist/
+/target/
+/Cargo.lock
+.env
+.DS_Store
+/logs/
+/data/
+/.vscode/
+node_modules/

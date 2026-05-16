@@ -1,0 +1,14 @@
+{
+  "name": "sql-admin-frontend",
+  "version": "0.1.0",
+  "private": true,
+  "scripts": {
+    "build:css": "npx tailwindcss -i ./styles.css -o ./public/styles.css --minify",
+    "watch:css": "npx tailwindcss -i ./styles.css -o ./public/styles.css --watch"
+  },
+  "devDependencies": {
+    "tailwindcss": "^3.4.0",
+    "postcss": "^8.4.0",
+    "autoprefixer": "^10.4.0"
+  }
+}

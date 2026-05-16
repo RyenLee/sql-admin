@@ -1,0 +1,49 @@
+[workspace]
+resolver = "2"
+members = ["crates/backend", "crates/frontend", "crates/shared"]
+
+[workspace.package]
+version = "0.1.0"
+edition = "2024"
+rust-version = "1.95"
+
+[workspace.dependencies]
+tokio = { version = "1.52.3", features = ["full"] }
+serde = { version = "1.0.228", features = ["derive"] }
+serde_json = "1.0.149"
+anyhow = "1.0.102"
+thiserror = "2.0.18"
+
+axum = "0.8.9"
+tower = "0.5.3"
+tower-http = { version = "0.6.10", features = ["fs", "cors", "trace"] }
+hyper = "1.9.0"
+
+sqlx = { version = "0.8.6", features = [
+    "runtime-tokio-native-tls",
+    "sqlite",
+    "postgres",
+    "mysql",
+    "macros",
+    "uuid",
+    "chrono",
+] }
+
+futures = "0.3.32"
+
+tracing = "0.1.44"
+tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
+tracing-appender = "0.2.5"
+
+uuid = { version = "1.23.1", features = ["serde", "v4", "js"] }
+chrono = { version = "0.4.44", features = ["serde"] }
+
+leptos = { version = "0.8.19", features = ["csr"] }
+leptos_router = "0.8.13"
+gloo-net = "0.7.0"
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"

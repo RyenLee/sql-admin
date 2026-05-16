@@ -1,0 +1,9 @@
+[build]
+target = "./index.html"
+
+[watch]
+ignore = ["../backend", "../shared"]
+
+[serve]
+port = 8080
+open = false
