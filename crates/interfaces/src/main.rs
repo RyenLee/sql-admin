@@ -52,7 +52,25 @@ async fn main() -> anyhow::Result<()> {
     );
 
     let crypto: Arc<dyn sql_admin_domain::shared::crypto::EncryptionService> =
-        Arc::new(AesGcmEncryptionService::new()?);
+        Arc::new(match AesGcmEncryptionService::new() {
+            Ok(service) => {
+                tracing::info!(
+                    module = "main",
+                    event = "encryption_initialized",
+                    "Using ENCRYPTION_KEY from environment"
+                );
+                service
+            }
+            Err(e) => {
+                tracing::warn!(
+                    module = "main",
+                    event = "encryption_fallback",
+                    error = %e,
+                    "ENCRYPTION_KEY not set, using default key (for development only)"
+                );
+                AesGcmEncryptionService::with_default_key()
+            }
+        });
 
     let conn_repo: Arc<dyn sql_admin_domain::connection::repository::ConnectionRepository> =
         Arc::new(SqliteConnectionRepository::new(pool.clone()));
