@@ -7,54 +7,18 @@ pub fn AppearancePage() -> impl IntoView {
     let dark_mode = app_state.dark_mode;
 
     view! {
-        <div class=move || {
-            if dark_mode.get() {
-                "min-h-full bg-gray-900 p-6"
-            } else {
-                "min-h-full bg-white p-6"
-            }
-        }>
+        <div class="min-h-full bg-white dark:bg-gray-900 p-6">
             <div class="max-w-4xl mx-auto">
                 <div class="flex items-center mb-6">
-                    <h1 class=move || {
-                        if dark_mode.get() {
-                            "text-2xl font-bold text-white"
-                        } else {
-                            "text-2xl font-bold text-gray-900"
-                        }
-                    }>"Appearance"</h1>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">"Appearance"</h1>
                 </div>
 
                 <div class="grid gap-6">
-                    <div class=move || {
-                        if dark_mode.get() {
-                            "bg-gray-800 rounded-lg p-6"
-                        } else {
-                            "bg-gray-50 rounded-lg p-6"
-                        }
-                    }>
-                        <h2 class=move || {
-                            if dark_mode.get() {
-                                "text-lg font-semibold text-gray-200 mb-4"
-                            } else {
-                                "text-lg font-semibold text-gray-800 mb-4"
-                            }
-                        }>"Theme"</h2>
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">"Theme"</h2>
                         <div class="space-y-4">
-                            <div class=move || {
-                                if dark_mode.get() {
-                                    "flex items-center justify-between px-4 py-3 bg-gray-700 rounded"
-                                } else {
-                                    "flex items-center justify-between px-4 py-3 bg-white rounded border"
-                                }
-                            }>
-                                <span class=move || {
-                                    if dark_mode.get() {
-                                        "text-gray-300"
-                                    } else {
-                                        "text-gray-700"
-                                    }
-                                }>"Dark Mode"</span>
+                            <div class="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-700 rounded border dark:border-0">
+                                <span class="text-gray-700 dark:text-gray-300">"Dark Mode"</span>
                                 <button
                                     class=move || {
                                         if dark_mode.get() {
@@ -77,28 +41,12 @@ pub fn AppearancePage() -> impl IntoView {
                         </div>
                     </div>
 
-                    <div class=move || {
-                        if dark_mode.get() {
-                            "bg-gray-800 rounded-lg p-6"
-                        } else {
-                            "bg-gray-50 rounded-lg p-6"
-                        }
-                    }>
-                        <h2 class=move || {
-                            if dark_mode.get() {
-                                "text-lg font-semibold text-gray-200 mb-4"
-                            } else {
-                                "text-lg font-semibold text-gray-800 mb-4"
-                            }
-                        }>"Font Size"</h2>
+                    <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
+                        <h2 class="text-lg font-semibold text-gray-800 dark:text-gray-200 mb-4">"Font Size"</h2>
                         <div class="flex items-center space-x-4">
-                            <span class=move || {
-                                if dark_mode.get() { "text-gray-400" } else { "text-gray-500" }
-                            }>"Small"</span>
+                            <span class="text-gray-500 dark:text-gray-400">"Small"</span>
                             <input type="range" min="12" max="18" value="14" class="flex-1" />
-                            <span class=move || {
-                                if dark_mode.get() { "text-gray-400" } else { "text-gray-500" }
-                            }>"Large"</span>
+                            <span class="text-gray-500 dark:text-gray-400">"Large"</span>
                         </div>
                     </div>
                 </div>

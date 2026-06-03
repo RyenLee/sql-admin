@@ -3,7 +3,7 @@ use crate::state::use_app_state;
 use crate::tab_manager::{Tab, TabKind, make_table_structure_tab_id};
 use leptos::prelude::*;
 use leptos_router::hooks::use_params_map;
-use sql_admin_shared::TableDef;
+use sql_admin_api_types::TableDef;
 use wasm_bindgen_futures::spawn_local;
 
 #[component]
@@ -19,12 +19,10 @@ pub fn TableStructure() -> impl IntoView {
         let conn_id_str = params
             .get()
             .get("conn_id")
-            .map(|s| s.clone())
             .unwrap_or_default();
         let table_name = params
             .get()
             .get("table")
-            .map(|s| s.clone())
             .unwrap_or_default();
 
         if conn_id_str.is_empty() || table_name.is_empty() {
@@ -97,7 +95,8 @@ pub fn TableStructure() -> impl IntoView {
                                     </span>
                                 }.into_any()
                             } else {
-                                view! {}.into_any()
+                                let _: () = view! {};
+                                ().into_any()
                             }}
                         </div>
 
@@ -164,7 +163,8 @@ pub fn TableStructure() -> impl IntoView {
                                                         {if col.is_primary_key {
                                                             view! { <span class="text-yellow-600 font-semibold">"PK"</span> }.into_any()
                                                         } else {
-                                                            view! {}.into_any()
+                                                            let _: () = view! {};
+                                                            ().into_any()
                                                         }}
                                                     </td>
                                                 </tr>
@@ -197,7 +197,8 @@ pub fn TableStructure() -> impl IntoView {
                                                     {if idx.is_unique {
                                                         view! { <span class="text-xs text-blue-500 bg-blue-50 px-1 rounded">"UNIQUE"</span> }.into_any()
                                                     } else {
-                                                        view! {}.into_any()
+                                                        let _: () = view! {};
+                                                        ().into_any()
                                                     }}
                                                 </div>
                                             }
@@ -206,7 +207,8 @@ pub fn TableStructure() -> impl IntoView {
                                 </div>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }}
 
                         {if !def.ddl.is_empty() {
@@ -235,12 +237,14 @@ pub fn TableStructure() -> impl IntoView {
                                 </div>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }}
                     </div>
                 }.into_any()
             } else {
-                view! {}.into_any()
+                let _: () = view! {};
+                ().into_any()
             }}
         </div>
     }

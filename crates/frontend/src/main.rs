@@ -1,3 +1,4 @@
+#![allow(clippy::unused_unit)]
 mod api;
 mod app;
 mod components;

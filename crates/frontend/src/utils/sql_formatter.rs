@@ -56,7 +56,7 @@ pub fn tokenize_sql(sql: &str) -> Vec<Token> {
             }
             '"' => {
                 let mut s = String::from("\"");
-                while let Some((_, c)) = chars.next() {
+                for (_, c) in chars.by_ref() {
                     s.push(c);
                     if c == '"' {
                         break;
@@ -67,7 +67,7 @@ pub fn tokenize_sql(sql: &str) -> Vec<Token> {
             '-' if sql.as_bytes().get(idx + 1) == Some(&b'-') => {
                 let mut s = String::from("--");
                 chars.next();
-                while let Some((_, c)) = chars.next() {
+                for (_, c) in chars.by_ref() {
                     s.push(c);
                     if c == '\n' {
                         break;
@@ -79,7 +79,7 @@ pub fn tokenize_sql(sql: &str) -> Vec<Token> {
                 let mut s = String::from("/*");
                 chars.next();
                 let mut prev_star = false;
-                while let Some((_, c)) = chars.next() {
+                for (_, c) in chars.by_ref() {
                     s.push(c);
                     if prev_star && c == '/' {
                         break;
@@ -101,10 +101,7 @@ pub fn tokenize_sql(sql: &str) -> Vec<Token> {
                     op.push('|');
                 } else if ch == '-' {
                     // already handled -- above
-                } else if (ch == '<' || ch == '>') && chars.peek().map(|(_, c)| *c) == Some('=') {
-                    chars.next();
-                    op.push('=');
-                } else if ch == '!' && chars.peek().map(|(_, c)| *c) == Some('=') {
+                } else if (ch == '<' || ch == '>' || ch == '!') && chars.peek().map(|(_, c)| *c) == Some('=') {
                     chars.next();
                     op.push('=');
                 } else if ch == '<' && chars.peek().map(|(_, c)| *c) == Some('>') {
@@ -417,9 +414,7 @@ impl<'a> SqlFormatter<'a> {
             self.format_statement();
         }
         let result = self.output.trim().to_string();
-        if result.is_empty() {
-            result
-        } else if result.ends_with(';') {
+        if result.is_empty() || result.ends_with(';') {
             result
         } else {
             format!("{};", result)
@@ -427,11 +422,10 @@ impl<'a> SqlFormatter<'a> {
     }
 
     fn peek_word(&self) -> Option<&str> {
-        if self.pos < self.tokens.len() {
-            if let Token::Word(w) = &self.tokens[self.pos] {
+        if self.pos < self.tokens.len()
+            && let Token::Word(w) = &self.tokens[self.pos] {
                 return Some(w);
             }
-        }
         None
     }
 
@@ -527,12 +521,11 @@ impl<'a> SqlFormatter<'a> {
         self.write_indent();
         self.write_raw("SELECT");
 
-        if let Some(Token::Word(w)) = self.peek_token() {
-            if is_keyword_eq(w, "DISTINCT") {
+        if let Some(Token::Word(w)) = self.peek_token()
+            && is_keyword_eq(w, "DISTINCT") {
                 self.advance();
                 self.write_raw(" DISTINCT");
             }
-        }
 
         self.write_raw("\n");
         self.indent += 1;
@@ -656,9 +649,7 @@ impl<'a> SqlFormatter<'a> {
                 Some(Token::RParen) => {
                     self.advance();
                     self.write_raw(")");
-                    if depth > 0 {
-                        depth -= 1;
-                    }
+                    depth = depth.saturating_sub(1);
                 }
                 Some(Token::Word(ref w)) if is_keyword_eq(w, "CASE") && depth == 0 => {
                     self.format_case();
@@ -677,10 +668,10 @@ impl<'a> SqlFormatter<'a> {
                                 self.write_raw(&uppercase_keyword(w));
                             }
                             Token::StringLiteral(s) => {
-                                self.write_raw(&s);
+                                self.write_raw(s);
                             }
                             Token::QuotedIdent(s) => {
-                                self.write_raw(&s);
+                                self.write_raw(s);
                             }
                             Token::Operator(op) => {
                                 self.write_raw(op);
@@ -766,9 +757,7 @@ impl<'a> SqlFormatter<'a> {
                 Some(Token::RParen) => {
                     self.advance();
                     self.write_raw(")");
-                    if depth > 0 {
-                        depth -= 1;
-                    }
+                    depth = depth.saturating_sub(1);
                 }
                 Some(Token::Word(ref w))
                     if is_keyword_in(w, &["WHEN", "ELSE", "END"]) && depth == 0 =>
@@ -782,7 +771,7 @@ impl<'a> SqlFormatter<'a> {
                                 self.write_raw(&uppercase_keyword(w));
                             }
                             Token::StringLiteral(s) => {
-                                self.write_raw(&s);
+                                self.write_raw(s);
                             }
                             Token::Operator(op) => {
                                 self.write_raw(op);
@@ -829,9 +818,7 @@ impl<'a> SqlFormatter<'a> {
                 Some(Token::RParen) => {
                     self.advance();
                     self.write_raw(")");
-                    if depth > 0 {
-                        depth -= 1;
-                    }
+                    depth = depth.saturating_sub(1);
                 }
                 Some(Token::Comma) if depth == 0 => {
                     self.write_raw("\n");
@@ -844,7 +831,7 @@ impl<'a> SqlFormatter<'a> {
                                 self.write_raw(&uppercase_keyword(w));
                             }
                             Token::StringLiteral(s) => {
-                                self.write_raw(&s);
+                                self.write_raw(s);
                             }
                             Token::Operator(op) => {
                                 self.write_raw(op);
@@ -936,11 +923,10 @@ impl<'a> SqlFormatter<'a> {
                 }
                 "GROUP" => {
                     self.advance();
-                    if let Some(Token::Word(ref w)) = self.peek_token() {
-                        if is_keyword_eq(w, "BY") {
+                    if let Some(Token::Word(ref w)) = self.peek_token()
+                        && is_keyword_eq(w, "BY") {
                             self.advance();
                         }
-                    }
                     self.write_indent();
                     self.write_raw("GROUP BY ");
                     self.format_comma_list();
@@ -953,11 +939,10 @@ impl<'a> SqlFormatter<'a> {
                 }
                 "ORDER" => {
                     self.advance();
-                    if let Some(Token::Word(ref w)) = self.peek_token() {
-                        if is_keyword_eq(w, "BY") {
+                    if let Some(Token::Word(ref w)) = self.peek_token()
+                        && is_keyword_eq(w, "BY") {
                             self.advance();
                         }
-                    }
                     self.write_indent();
                     self.write_raw("ORDER BY ");
                     self.format_comma_list();
@@ -979,12 +964,11 @@ impl<'a> SqlFormatter<'a> {
                     self.write_raw("\n");
                     self.write_indent();
                     self.write_raw("UNION");
-                    if let Some(Token::Word(w)) = self.peek_token() {
-                        if is_keyword_eq(&w, "ALL") {
+                    if let Some(Token::Word(w)) = self.peek_token()
+                        && is_keyword_eq(&w, "ALL") {
                             self.advance();
                             self.write_raw(" ALL");
                         }
-                    }
                     self.write_raw("\n");
                 }
                 "INTERSECT" => {
@@ -1253,9 +1237,7 @@ impl<'a> SqlFormatter<'a> {
                 Some(Token::RParen) => {
                     self.advance();
                     self.write_raw(")");
-                    if depth > 0 {
-                        depth -= 1;
-                    }
+                    depth = depth.saturating_sub(1);
                 }
                 Some(Token::Operator(op)) if op == "." => {
                     self.advance();
@@ -1271,7 +1253,7 @@ impl<'a> SqlFormatter<'a> {
                                 self.write_raw(&uppercase_keyword(w));
                             }
                             Token::StringLiteral(s) => {
-                                self.write_raw(&s);
+                                self.write_raw(s);
                             }
                             Token::Operator(op) => {
                                 self.write_raw(op);
@@ -1350,9 +1332,7 @@ impl<'a> SqlFormatter<'a> {
                 Some(Token::RParen) => {
                     self.advance();
                     self.write_raw(")");
-                    if depth > 0 {
-                        depth -= 1;
-                    }
+                    depth = depth.saturating_sub(1);
                 }
                 Some(Token::Operator(op)) if op == "." => {
                     self.advance();
@@ -1369,7 +1349,7 @@ impl<'a> SqlFormatter<'a> {
                                 self.write_raw(&uppercase_keyword(w));
                             }
                             Token::StringLiteral(s) => {
-                                self.write_raw(&s);
+                                self.write_raw(s);
                             }
                             Token::Operator(op) => {
                                 self.write_raw(op);
@@ -1452,7 +1432,7 @@ impl<'a> SqlFormatter<'a> {
                                 self.write_raw(&uppercase_keyword(w));
                             }
                             Token::StringLiteral(s) => {
-                                self.write_raw(&s);
+                                self.write_raw(s);
                             }
                             Token::Operator(op) => {
                                 self.write_raw(op);
@@ -1528,9 +1508,7 @@ impl<'a> SqlFormatter<'a> {
                 Some(Token::RParen) => {
                     self.advance();
                     self.write_raw(")");
-                    if depth > 0 {
-                        depth -= 1;
-                    }
+                    depth = depth.saturating_sub(1);
                 }
                 Some(_) => {
                     if let Some(tok) = self.advance() {
@@ -1539,7 +1517,7 @@ impl<'a> SqlFormatter<'a> {
                                 self.write_raw(&uppercase_keyword(w));
                             }
                             Token::StringLiteral(s) => {
-                                self.write_raw(&s);
+                                self.write_raw(s);
                             }
                             Token::Operator(op) => {
                                 self.write_raw(op);
@@ -1569,12 +1547,11 @@ impl<'a> SqlFormatter<'a> {
         self.advance();
         self.write_indent();
         self.write_raw("WITH");
-        if let Some(Token::Word(ref w)) = self.peek_token() {
-            if is_keyword_eq(w, "RECURSIVE") {
+        if let Some(Token::Word(ref w)) = self.peek_token()
+            && is_keyword_eq(w, "RECURSIVE") {
                 self.advance();
                 self.write_raw(" RECURSIVE");
             }
-        }
 
         let mut first_cte = true;
         loop {
@@ -1601,12 +1578,11 @@ impl<'a> SqlFormatter<'a> {
             self.write_raw(&cte_name);
             first_cte = false;
 
-            if let Some(Token::Word(ref w)) = self.peek_token() {
-                if is_keyword_eq(w, "AS") {
+            if let Some(Token::Word(ref w)) = self.peek_token()
+                && is_keyword_eq(w, "AS") {
                     self.advance();
                     self.write_raw(" AS");
                 }
-            }
 
             if let Some(Token::LParen) = self.peek_token() {
                 self.advance();
@@ -1685,7 +1661,7 @@ impl<'a> SqlFormatter<'a> {
                                 self.write_raw(&uppercase_keyword(w));
                             }
                             Token::StringLiteral(s) => {
-                                self.write_raw(&s);
+                                self.write_raw(s);
                             }
                             Token::Operator(op) => {
                                 self.write_raw(op);
@@ -1847,14 +1823,12 @@ impl<'a> SqlFormatter<'a> {
         self.write_indent();
         self.write_raw(&word);
 
-        if is_keyword_eq(&word, "BEGIN") {
-            if let Some(Token::Word(w)) = self.peek_token() {
-                if is_keyword_eq(&w, "TRANSACTION") {
+        if is_keyword_eq(&word, "BEGIN")
+            && let Some(Token::Word(w)) = self.peek_token()
+                && is_keyword_eq(&w, "TRANSACTION") {
                     self.advance();
                     self.write_raw(" TRANSACTION");
                 }
-            }
-        }
 
         self.write_raw(";\n");
     }

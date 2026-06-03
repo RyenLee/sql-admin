@@ -2,7 +2,7 @@ use crate::api::client;
 use crate::state::use_app_state;
 use crate::tab_manager::{Tab, TabKind, make_query_tab_id};
 use leptos::prelude::*;
-use sql_admin_shared::QueryHistory;
+use sql_admin_api_types::QueryHistory;
 use wasm_bindgen_futures::spawn_local;
 
 fn format_time_ago(created_at: chrono::DateTime<chrono::Utc>) -> String {
@@ -24,7 +24,6 @@ fn format_time_ago(created_at: chrono::DateTime<chrono::Utc>) -> String {
 #[component]
 pub fn QueryHistoryPage() -> impl IntoView {
     let app_state = use_app_state();
-    let dark_mode = app_state.dark_mode;
     let (history, set_history) = signal(Vec::<QueryHistory>::new());
     let (loading, set_loading) = signal(false);
     let (error_msg, set_error_msg) = signal(None::<String>);
@@ -53,30 +52,12 @@ pub fn QueryHistoryPage() -> impl IntoView {
     });
 
     view! {
-        <div class=move || {
-            if dark_mode.get() {
-                "min-h-full bg-gray-900 p-6"
-            } else {
-                "min-h-full bg-white p-6"
-            }
-        }>
+        <div class="min-h-full bg-white dark:bg-gray-900 p-6">
             <div class="max-w-4xl mx-auto">
                 <div class="flex items-center justify-between mb-6">
-                    <h1 class=move || {
-                        if dark_mode.get() {
-                            "text-2xl font-bold text-white"
-                        } else {
-                            "text-2xl font-bold text-gray-900"
-                        }
-                    }>"Query History"</h1>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">"Query History"</h1>
                     <button
-                        class=move || {
-                            if dark_mode.get() {
-                                "px-3 py-1.5 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 cursor-pointer transition-colors text-sm"
-                            } else {
-                                "px-3 py-1.5 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 cursor-pointer transition-colors text-sm"
-                            }
-                        }
+                        class="px-3 py-1.5 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer transition-colors text-sm"
                         on:click=move |_| load_history()
                         disabled=move || loading.get()
                     >
@@ -96,47 +77,23 @@ pub fn QueryHistoryPage() -> impl IntoView {
                 {move || {
                     let msg = status_msg.get();
                     msg.map(|m| view! {
-                        <div class=move || {
-                            if dark_mode.get() {
-                                "mb-4 px-4 py-3 bg-blue-900 border border-blue-700 text-blue-300 rounded-lg"
-                            } else {
-                                "mb-4 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg"
-                            }
-                        }>
+                        <div class="mb-4 px-4 py-3 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 rounded-lg">
                             {m}
                         </div>
                     })
                 }}
 
-                <div class=move || {
-                    if dark_mode.get() {
-                        "bg-gray-800 rounded-lg p-6"
-                    } else {
-                        "bg-gray-50 rounded-lg p-6"
-                    }
-                }>
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
                     {move || {
                         if loading.get() && history.get().is_empty() {
                             view! {
-                                <div class=move || {
-                                    if dark_mode.get() {
-                                        "text-center py-8 text-gray-500"
-                                    } else {
-                                        "text-center py-8 text-gray-400"
-                                    }
-                                }>"Loading query history..."</div>
+                                <div class="text-center py-8 text-gray-400 dark:text-gray-500">"Loading query history..."</div>
                             }.into_any()
                         } else {
                             let items = history.get();
                             if items.is_empty() {
                                 view! {
-                                    <div class=move || {
-                                        if dark_mode.get() {
-                                            "text-center py-8 text-gray-500"
-                                        } else {
-                                            "text-center py-8 text-gray-400"
-                                        }
-                                    }>"No query history yet. Execute a query to see it here."</div>
+                                    <div class="text-center py-8 text-gray-400 dark:text-gray-500">"No query history yet. Execute a query to see it here."</div>
                                 }.into_any()
                             } else {
                                 view! {
@@ -152,13 +109,7 @@ pub fn QueryHistoryPage() -> impl IntoView {
                                             let error_message = item.error_message.clone().unwrap_or_default();
 
                                             view! {
-                                                <div class=move || {
-                                                    if dark_mode.get() {
-                                                        "flex items-center justify-between px-4 py-3 bg-gray-700 rounded"
-                                                    } else {
-                                                        "flex items-center justify-between px-4 py-3 bg-white rounded border"
-                                                    }
-                                                }>
+                                                <div class="flex items-center justify-between px-4 py-3 bg-white dark:bg-gray-700 rounded border dark:border-0">
                                                     <div class="flex-1 min-w-0 mr-4">
                                                         <div class="flex items-center gap-2 mb-1">
                                                             {if is_success {
@@ -170,61 +121,34 @@ pub fn QueryHistoryPage() -> impl IntoView {
                                                                     <span class="text-xs px-1.5 py-0.5 bg-red-100 text-red-700 rounded">"Error"</span>
                                                                 }.into_any()
                                                             }}
-                                                            <span class=move || {
-                                                                if dark_mode.get() {
-                                                                    "text-xs text-gray-500"
-                                                                } else {
-                                                                    "text-xs text-gray-400"
-                                                                }
-                                                            }>{connection_name}</span>
-                                                            <span class=move || {
-                                                                if dark_mode.get() {
-                                                                    "text-xs text-gray-500"
-                                                                } else {
-                                                                    "text-xs text-gray-400"
-                                                                }
-                                                            }>{time_ago}</span>
+                                                            <span class="text-xs text-gray-400 dark:text-gray-500">{connection_name}</span>
+                                                            <span class="text-xs text-gray-400 dark:text-gray-500">{time_ago}</span>
                                                         </div>
-                                                        <span class=move || {
-                                                            if dark_mode.get() {
-                                                                "text-gray-300 text-sm"
-                                                            } else {
-                                                                "text-gray-700 text-sm"
-                                                            }
-                                                        }>{query_text.clone()}</span>
+                                                        <span class="text-gray-700 dark:text-gray-300 text-sm">{query_text.clone()}</span>
                                                         <div class="flex items-center gap-3 mt-1">
                                                             {if !exec_time.is_empty() {
                                                                 view! {
-                                                                    <span class=move || {
-                                                                        if dark_mode.get() {
-                                                                            "text-xs text-gray-500"
-                                                                        } else {
-                                                                            "text-xs text-gray-400"
-                                                                        }
-                                                                    }>{exec_time}</span>
+                                                                    <span class="text-xs text-gray-400 dark:text-gray-500">{exec_time}</span>
                                                                 }.into_any()
                                                             } else {
-                                                                view! {}.into_any()
+                                                                let _: () = view! {};
+                                                                ().into_any()
                                                             }}
                                                             {if !rows_info.is_empty() {
                                                                 view! {
-                                                                    <span class=move || {
-                                                                        if dark_mode.get() {
-                                                                            "text-xs text-gray-500"
-                                                                        } else {
-                                                                            "text-xs text-gray-400"
-                                                                        }
-                                                                    }>{rows_info}</span>
+                                                                    <span class="text-xs text-gray-400 dark:text-gray-500">{rows_info}</span>
                                                                 }.into_any()
                                                             } else {
-                                                                view! {}.into_any()
+                                                                let _: () = view! {};
+                                                                ().into_any()
                                                             }}
                                                             {if !error_message.is_empty() {
                                                                 view! {
                                                                     <span class="text-xs text-red-500 truncate">{error_message}</span>
                                                                 }.into_any()
                                                             } else {
-                                                                view! {}.into_any()
+                                                                let _: () = view! {};
+                                                                ().into_any()
                                                             }}
                                                         </div>
                                                     </div>
@@ -283,13 +207,7 @@ pub fn QueryHistoryPage() -> impl IntoView {
                         if !items.is_empty() {
                             view! {
                                 <button
-                                    class=move || {
-                                        if dark_mode.get() {
-                                            "mt-4 w-full px-4 py-2 bg-gray-700 text-gray-300 rounded hover:bg-gray-600 cursor-pointer transition-colors"
-                                        } else {
-                                            "mt-4 w-full px-4 py-2 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 cursor-pointer transition-colors"
-                                        }
-                                    }
+                                    class="mt-4 w-full px-4 py-2 bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300 rounded hover:bg-gray-300 dark:hover:bg-gray-600 cursor-pointer transition-colors"
                                     on:click=move |_| {
                                         spawn_local(async move {
                                             match client::clear_query_history().await {
@@ -306,7 +224,8 @@ pub fn QueryHistoryPage() -> impl IntoView {
                                 >"Clear All History"</button>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }
                     }}
                 </div>

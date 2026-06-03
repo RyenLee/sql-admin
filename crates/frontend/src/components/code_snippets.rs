@@ -101,34 +101,12 @@ pub const PRESET_SNIPPETS: &[CodeSnippet] = &[
 
 #[component]
 pub fn CodeSnippetPanel(on_select: Callback<String>) -> impl IntoView {
-    let dark_mode = use_context::<crate::state::AppState>()
-        .map(|s| s.dark_mode)
-        .unwrap_or(RwSignal::new(false));
-
     let snippets = PRESET_SNIPPETS;
 
     view! {
-        <div class=move || {
-            if dark_mode.get() {
-                "bg-gray-800 rounded-lg shadow h-full flex flex-col"
-            } else {
-                "bg-white rounded-lg shadow h-full flex flex-col"
-            }
-        }>
-            <div class=move || {
-                if dark_mode.get() {
-                    "p-3 border-b border-gray-700"
-                } else {
-                    "p-3 border-b"
-                }
-            }>
-                <h3 class=move || {
-                    if dark_mode.get() {
-                        "text-sm font-semibold text-gray-300"
-                    } else {
-                        "text-sm font-semibold text-gray-700"
-                    }
-                }>"Code Snippets"</h3>
+        <div class="bg-white dark:bg-gray-800 rounded-lg shadow h-full flex flex-col">
+            <div class="p-3 border-b dark:border-gray-700">
+                <h3 class="text-sm font-semibold text-gray-700 dark:text-gray-300">"Code Snippets"</h3>
             </div>
 
             <div class="flex-1 overflow-auto p-2 space-y-2">
@@ -136,8 +114,7 @@ pub fn CodeSnippetPanel(on_select: Callback<String>) -> impl IntoView {
                     view! {
                         <CodeSnippetCard
                             snippet=snippet.clone()
-                            dark_mode=dark_mode
-                            on_select=on_select.clone()
+                            on_select=on_select
                         />
                     }
                 }).collect_view()}
@@ -149,7 +126,6 @@ pub fn CodeSnippetPanel(on_select: Callback<String>) -> impl IntoView {
 #[component]
 pub fn CodeSnippetCard(
     snippet: CodeSnippet,
-    dark_mode: RwSignal<bool>,
     on_select: Callback<String>,
 ) -> impl IntoView {
     #[allow(unused_variables)]
@@ -158,11 +134,9 @@ pub fn CodeSnippetCard(
     let handle_copy = move |_| {
         #[cfg(target_arch = "wasm32")]
         {
-            let _ = leptos::web_sys::window()
-                .unwrap()
-                .navigator()
-                .clipboard()
-                .write_text(snippet.code);
+            if let Some(window) = leptos::web_sys::window() {
+                let _ = window.navigator().clipboard().write_text(snippet.code);
+            }
             set_copied.set(true);
             Timeout::new(2000, move || {
                 set_copied.set(false);
@@ -177,77 +151,20 @@ pub fn CodeSnippetCard(
 
     let highlighted_code = highlight_sql(snippet.code);
 
-    let category_class = move || {
-        let base = "text-xs font-medium px-2 py-0.5 rounded";
-        if dark_mode.get() {
-            format!("{} bg-gray-600 text-gray-200", base)
-        } else {
-            format!("{} bg-blue-100 text-blue-700", base)
-        }
-    };
-
-    let title_class = move || {
-        if dark_mode.get() {
-            "text-sm font-semibold text-gray-200"
-        } else {
-            "text-sm font-semibold text-gray-800"
-        }
-    };
-
-    let card_class = move || {
-        if dark_mode.get() {
-            "bg-gray-700/50 hover:bg-gray-700 border border-gray-600 rounded-lg p-3 cursor-pointer transition-colors"
-        } else {
-            "bg-gray-50 hover:bg-gray-100 border border-gray-200 rounded-lg p-3 cursor-pointer transition-colors"
-        }
-    };
-
     let copy_button_class = move || {
         if copied.get() {
-            if dark_mode.get() {
-                "p-1.5 rounded hover:bg-gray-600 text-green-400"
-            } else {
-                "p-1.5 rounded hover:bg-gray-200 text-green-600"
-            }
+            "p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-green-600 dark:text-green-400"
         } else {
-            if dark_mode.get() {
-                "p-1.5 rounded hover:bg-gray-600 text-gray-400 hover:text-gray-200"
-            } else {
-                "p-1.5 rounded hover:bg-gray-200 text-gray-500 hover:text-gray-700"
-            }
-        }
-    };
-
-    let description_class = move || {
-        if dark_mode.get() {
-            "text-xs text-gray-400 mb-2"
-        } else {
-            "text-xs text-gray-500 mb-2"
-        }
-    };
-
-    let pre_class = move || {
-        if dark_mode.get() {
-            "text-xs bg-gray-800 rounded p-2 overflow-x-auto font-mono"
-        } else {
-            "text-xs bg-white rounded p-2 overflow-x-auto font-mono border border-gray-200"
-        }
-    };
-
-    let code_class = move || {
-        if dark_mode.get() {
-            "text-gray-300"
-        } else {
-            "text-gray-700"
+            "p-1.5 rounded hover:bg-gray-200 dark:hover:bg-gray-600 text-gray-500 dark:text-gray-400 hover:text-gray-700 dark:hover:text-gray-200"
         }
     };
 
     view! {
-        <div class=card_class on:click=handle_click>
+        <div class="bg-gray-50 dark:bg-gray-700/50 hover:bg-gray-100 dark:hover:bg-gray-700 border border-gray-200 dark:border-gray-600 rounded-lg p-3 cursor-pointer transition-colors" on:click=handle_click>
             <div class="flex items-start justify-between mb-2">
                 <div class="flex items-center gap-2">
-                    <span class=category_class>{snippet.category}</span>
-                    <span class=title_class>{snippet.title}</span>
+                    <span class="text-xs font-medium px-2 py-0.5 rounded bg-blue-100 dark:bg-gray-600 text-blue-700 dark:text-gray-200">{snippet.category}</span>
+                    <span class="text-sm font-semibold text-gray-800 dark:text-gray-200">{snippet.title}</span>
                 </div>
                 <button
                     class=copy_button_class
@@ -264,10 +181,10 @@ pub fn CodeSnippetCard(
                 </button>
             </div>
 
-            <p class=description_class>{snippet.description}</p>
+            <p class="text-xs text-gray-500 dark:text-gray-400 mb-2">{snippet.description}</p>
 
-            <pre class=pre_class>
-                <code inner_html=highlighted_code class=code_class>
+            <pre class="text-xs bg-white dark:bg-gray-800 rounded p-2 overflow-x-auto font-mono border border-gray-200 dark:border-0">
+                <code inner_html=highlighted_code class="text-gray-700 dark:text-gray-300">
                 </code>
             </pre>
         </div>

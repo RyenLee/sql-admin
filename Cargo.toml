@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/backend", "crates/frontend", "crates/shared"]
+members = ["crates/api-types", "crates/frontend", "crates/shared", "crates/domain", "crates/infrastructure", "crates/application", "crates/interfaces"]
 
 [workspace.package]
 version = "1.1.0"
@@ -10,17 +10,18 @@ rust-version = "1.95"
 [workspace.dependencies]
 tokio = { version = "1.52.3", features = ["full"] }
 serde = { version = "1.0.228", features = ["derive"] }
-serde_json = "1.0.149"
+serde_json = "1.0.150"
 anyhow = "1.0.102"
 thiserror = "2.0.18"
 
 axum = "0.8.9"
 tower = "0.5.3"
-tower-http = { version = "0.6.10", features = ["fs", "cors", "trace"] }
-hyper = "1.9.0"
+tower-http = { version = "0.6.11", features = ["fs", "cors", "trace"] }
+hyper = "1.10.1"
 
-sqlx = { version = "0.8.6", features = [
-    "runtime-tokio-native-tls",
+sqlx = { version = "0.9.0", features = [
+    "runtime-tokio",
+    "tls-native-tls",
     "sqlite",
     "postgres",
     "mysql",
@@ -35,12 +36,13 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 tracing-appender = "0.2.5"
 
-uuid = { version = "1.23.1", features = ["serde", "v4", "js"] }
+uuid = { version = "1.23.2", features = ["serde", "v4", "js"] }
 chrono = { version = "0.4.44", features = ["serde"] }
 
 leptos = { version = "0.8.19", features = ["csr"] }
 leptos_router = "0.8.13"
 gloo-net = "0.7.0"
+redb = "4.1.0"
 
 [profile.release]
 opt-level = "z"

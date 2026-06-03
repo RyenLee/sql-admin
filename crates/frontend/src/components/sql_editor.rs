@@ -483,13 +483,7 @@ pub fn SqlEditor(
     };
 
     view! {
-        <div class=move || {
-            if dark_mode.get() {
-                "relative flex border border-gray-700 rounded-md overflow-hidden bg-gray-900"
-            } else {
-                "relative flex border border-gray-300 rounded-md overflow-hidden bg-white"
-            }
-        }>
+        <div class="relative flex border border-gray-300 dark:border-gray-700 rounded-md overflow-hidden bg-white dark:bg-gray-900">
             <div class="flex-shrink-0 pl-2 pr-1 select-none border-r overflow-hidden"
                 style=move || {
                     let border_color = if dark_mode.get() { "#374151" } else { "#d1d5db" };
@@ -565,10 +559,8 @@ pub fn SqlEditor(
                         let key = ev.key();
                         if key == "Tab" {
                             ev.prevent_default();
-                            let textarea = ev.target()
-                                .unwrap()
-                                .dyn_into::<leptos::web_sys::HtmlTextAreaElement>()
-                                .unwrap();
+                            let Some(target) = ev.target() else { return };
+                            let Ok(textarea) = target.dyn_into::<leptos::web_sys::HtmlTextAreaElement>() else { return };
                             let start = textarea.selection_start().ok().flatten().unwrap_or(0) as usize;
                             let end = textarea.selection_end().ok().flatten().unwrap_or(0) as usize;
                             let mut current = query.get();

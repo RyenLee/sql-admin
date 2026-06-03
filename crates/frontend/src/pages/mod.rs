@@ -10,6 +10,7 @@ pub use not_found::NotFound;
 pub use query::QueryEditor;
 pub use query_history::QueryHistoryPage;
 pub use quick_start::QuickStartPage;
+pub use redb_browser::RedbBrowserPage;
 pub use sql_utilities::SqlUtilitiesPage;
 pub use table_structure::TableStructure;
 
@@ -25,5 +26,6 @@ mod not_found;
 mod query;
 mod query_history;
 mod quick_start;
+mod redb_browser;
 mod sql_utilities;
 mod table_structure;

@@ -4,42 +4,32 @@ use crate::state::AppState;
 use crate::tab_manager::{Tab, TabKind, make_connections_tab_id};
 use gloo_timers::future::TimeoutFuture;
 use leptos::prelude::*;
-use sql_admin_shared::{Connection, CreateConnectionRequest};
+use sql_admin_api_types::{Connection, CreateConnectionRequest};
 use wasm_bindgen_futures::spawn_local;
 
 #[component]
 pub fn Connections() -> impl IntoView {
     let app_state = use_context::<AppState>();
-    let dark_mode = app_state
-        .as_ref()
-        .map(|s| s.dark_mode)
-        .unwrap_or(RwSignal::new(false));
     let tab_manager = app_state.as_ref().map(|s| s.tab_manager);
-    let (connections, set_connections) = signal(Vec::<Connection>::new());
+    let connections = app_state
+        .as_ref()
+        .map(|s| s.connections)
+        .unwrap_or(RwSignal::new(Vec::<Connection>::new()));
     let (show_form, set_show_form) = signal(false);
     let (editing_connection, set_editing_connection) = signal(None::<Connection>);
     let (testing_connection, set_testing_connection) = signal(None::<String>);
     let (test_result, set_test_result) = signal(None::<(String, bool, String)>);
+    let (error_message, set_error_message) = signal(None::<String>);
 
     let refresh_trigger = app_state
         .as_ref()
         .map(|s| s.refresh_trigger)
         .unwrap_or(RwSignal::new(0u32));
 
-    let load_connections = move || {
-        spawn_local(async move {
-            match client::list_connections().await {
-                Ok(conns) => set_connections.set(conns),
-                Err(e) => leptos::logging::error!("Failed to load connections: {}", e),
-            }
-        });
-    };
-
-    let mounted = RwSignal::new(false);
+    let mounted = StoredValue::new(false);
     Effect::new(move |_| {
-        if !mounted.get() {
-            mounted.set(true);
-            load_connections();
+        if !mounted.get_value() {
+            mounted.set_value(true);
             
             if let Some(tm) = tab_manager {
                 tm.update(|tm| {
@@ -56,37 +46,47 @@ pub fn Connections() -> impl IntoView {
 
     Effect::new(move |_| {
         let _ = refresh_trigger.get();
-        load_connections();
     });
 
+    let app_state_for_submit = app_state.clone();
     let on_submit_handler = move |conn: CreateConnectionRequest| {
         let rt = refresh_trigger;
         let editing = editing_connection.get();
+        let app_state = app_state_for_submit.clone();
+        let set_error = set_error_message;
         spawn_local(async move {
             let result = if let Some(existing) = editing {
                 client::update_connection(existing.id.clone(), conn).await
             } else {
                 client::create_connection(conn).await
             };
-            if let Ok(_) = result {
-                match client::list_connections().await {
-                    Ok(conns) => set_connections.set(conns),
-                    Err(e) => leptos::logging::error!("Failed to reload connections: {}", e),
+            if result.is_ok() {
+                set_error.set(None);
+                if let Some(ref s) = app_state {
+                    match client::list_connections().await {
+                        Ok(conns) => s.connections.set(conns),
+                        Err(e) => leptos::logging::error!("Failed to reload connections: {}", e),
+                    }
                 }
                 set_editing_connection.set(None);
                 set_show_form.set(false);
                 rt.update(|v| *v = v.wrapping_add(1));
+            } else if let Err(e) = result {
+                set_error.set(Some(e));
             }
         });
     };
 
     let handle_delete = move |id: String| {
         let rt = refresh_trigger;
+        let app_state = app_state.clone();
         spawn_local(async move {
-            if let Ok(_) = client::delete_connection(id).await {
-                match client::list_connections().await {
-                    Ok(conns) => set_connections.set(conns),
-                    Err(e) => leptos::logging::error!("Failed to reload connections: {}", e),
+            if client::delete_connection(id).await.is_ok() {
+                if let Some(ref s) = app_state {
+                    match client::list_connections().await {
+                        Ok(conns) => s.connections.set(conns),
+                        Err(e) => leptos::logging::error!("Failed to reload connections: {}", e),
+                    }
                 }
                 rt.update(|v| *v = v.wrapping_add(1));
             }
@@ -114,9 +114,7 @@ pub fn Connections() -> impl IntoView {
     view! {
         <div>
             <div class="flex justify-between items-center mb-6">
-                <h1 class=move || {
-                    if dark_mode.get() { "text-2xl font-bold text-gray-100" } else { "text-2xl font-bold text-gray-800" }
-                }>"Database Connections"</h1>
+                <h1 class="text-2xl font-bold text-gray-800 dark:text-gray-100">"Database Connections"</h1>
                 <button
                     class="px-4 py-2 bg-blue-600 text-white rounded-lg hover:bg-blue-700"
                     on:click=move |_| {
@@ -130,30 +128,38 @@ pub fn Connections() -> impl IntoView {
 
             {move || if show_form.get() {
                 view! {
-                    <ConnectionForm
-                        connection=editing_connection.get()
-                        on_submit=on_submit_handler
-                        on_cancel=move || set_show_form.set(false)
-                    />
+                    <div>
+                        {move || {
+                            if let Some(ref err) = error_message.get() {
+                                view! {
+                                    <div class="bg-red-100 border border-red-400 text-red-700 px-4 py-3 rounded mb-4">
+                                        {err.clone()}
+                                    </div>
+                                }.into_any()
+                            } else {
+                                ().into_any()
+                            }
+                        }}
+                        <ConnectionForm
+                            connection=editing_connection.get()
+                            on_submit=on_submit_handler.clone()
+                            on_cancel=move || {
+                                set_show_form.set(false);
+                                set_error_message.set(None);
+                            }
+                        />
+                    </div>
                 }.into_any()
             } else {
+                let handle_delete = handle_delete.clone();
                 view! {
                     <div class="grid gap-4">
                         {move || {
                             let conns = connections.get();
-                            let dm = dark_mode;
                             if conns.is_empty() {
                                 view! {
-                                    <div class=move || {
-                                        if dm.get() {
-                                            "bg-gray-800 rounded-lg shadow p-8 text-center"
-                                        } else {
-                                            "bg-white rounded-lg shadow p-8 text-center"
-                                        }
-                                    }>
-                                        <p class=move || {
-                                            if dm.get() { "text-gray-400" } else { "text-gray-500" }
-                                        }>"No connections yet. Create one to get started!"</p>
+                                    <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-8 text-center">
+                                        <p class="text-gray-500 dark:text-gray-400">"No connections yet. Create one to get started!"</p>
                                     </div>
                                 }.into_any()
                             } else {
@@ -167,26 +173,29 @@ pub fn Connections() -> impl IntoView {
                                         let conn_id_4 = conn_id.clone();
                                         let conn_id_5 = conn_id.clone();
                                         let conn_id_6 = conn_id.clone();
-                                        let testing = testing_connection.clone();
-                                        let testing_1 = testing.clone();
-                                        let testing_2 = testing.clone();
-                                        let testing_3 = testing.clone();
-                                        let test_res = test_result.clone();
-                                        let dm = dark_mode;
+                                        let db_type = conn.database_type.clone();
+                                        let handle_delete = handle_delete.clone();
+                                        let testing = testing_connection;
+                                        let testing_1 = testing;
+                                        let testing_2 = testing;
+                                        let testing_3 = testing;
+                                        let test_res = test_result;
 
                                         view! {
-                                            <div class=move || {
-                                                if dm.get() {
-                                                    "bg-gray-800 rounded-lg shadow p-4"
-                                                } else {
-                                                    "bg-white rounded-lg shadow p-4"
-                                                }
-                                            }>
+                                            <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-4">
                                                 <div class="flex justify-between items-start">
                                                     <div>
-                                                        <h3 class=move || {
-                                                            if dm.get() { "font-semibold text-lg text-gray-100" } else { "font-semibold text-lg" }
-                                                        }>{conn.name.clone()}</h3>
+                                                        <div class="flex items-center gap-2">
+                                                            <h3 class="font-semibold text-lg dark:text-gray-100">{conn.name.clone()}</h3>
+                                                            <span class=format!("px-2 py-0.5 text-xs rounded-full font-medium {}",
+                                                                match db_type {
+                                                                    sql_admin_api_types::DatabaseType::Sqlite => "bg-blue-100 dark:bg-blue-900 text-blue-700 dark:text-blue-300",
+                                                                    sql_admin_api_types::DatabaseType::Postgres => "bg-indigo-100 dark:bg-indigo-900 text-indigo-700 dark:text-indigo-300",
+                                                                    sql_admin_api_types::DatabaseType::Mysql => "bg-orange-100 dark:bg-orange-900 text-orange-700 dark:text-orange-300",
+                                                                    sql_admin_api_types::DatabaseType::Redb => "bg-purple-100 dark:bg-purple-900 text-purple-700 dark:text-purple-300",
+                                                                }
+                                                            )>{db_type.to_string()}</span>
+                                                        </div>
                                                         <p class="text-sm text-gray-500">
                                                             {format!("{}://{}:{}", conn.database_type, conn.host, conn.port)}
                                                         </p>
@@ -200,7 +209,8 @@ pub fn Connections() -> impl IntoView {
                                                                     </p>
                                                                 }.into_any()
                                                             } else {
-                                                                view! {}.into_any()
+                                                                let _: () = view! {};
+                                                                ().into_any()
                                                             }
                                                         }}
                                                     </div>
@@ -210,11 +220,9 @@ pub fn Connections() -> impl IntoView {
                                                             class=move || format!(
                                                                 "px-3 py-1 text-sm rounded {}",
                                                                 if testing_2.get() == Some(conn_id_3.clone()) {
-                                                                    if dm.get() { "bg-gray-700 text-gray-400 cursor-not-allowed" }
-                                                                    else { "bg-gray-100 cursor-not-allowed" }
+                                                                    "bg-gray-100 dark:bg-gray-700 text-gray-400 dark:text-gray-400 cursor-not-allowed"
                                                                 } else {
-                                                                    if dm.get() { "bg-green-900 text-green-300 hover:bg-green-800" }
-                                                                    else { "bg-green-100 text-green-600 hover:bg-green-200" }
+                                                                    "bg-green-100 dark:bg-green-900 text-green-600 dark:text-green-300 hover:bg-green-200 dark:hover:bg-green-800"
                                                                 }
                                                             )
                                                             on:click=move |_| handle_test(conn_id_4.clone())
@@ -222,13 +230,7 @@ pub fn Connections() -> impl IntoView {
                                                             {move || if testing_3.get() == Some(conn_id_5.clone()) { "Testing..." } else { "Test" }}
                                                         </button>
                                                         <button
-                                                            class=move || {
-                                                                if dm.get() {
-                                                                    "px-3 py-1 text-sm bg-gray-700 text-gray-300 rounded hover:bg-gray-600"
-                                                                } else {
-                                                                    "px-3 py-1 text-sm bg-gray-100 rounded hover:bg-gray-200"
-                                                                }
-                                                            }
+                                                            class="px-3 py-1 text-sm bg-gray-100 dark:bg-gray-700 text-gray-300 dark:text-gray-300 rounded hover:bg-gray-200 dark:hover:bg-gray-600"
                                                             on:click=move |_| {
                                                                 set_editing_connection.set(Some(conn_clone.clone()));
                                                                 set_show_form.set(true);

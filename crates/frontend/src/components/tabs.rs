@@ -6,7 +6,6 @@ use leptos_router::hooks::use_navigate;
 #[component]
 pub fn TabBar() -> impl IntoView {
     let app_state = use_app_state();
-    let dark_mode = app_state.dark_mode;
     let navigate = use_navigate();
 
     let activate_tab = {
@@ -44,13 +43,7 @@ pub fn TabBar() -> impl IntoView {
     });
 
     view! {
-        <div class=move || {
-            if dark_mode.get() {
-                "border-b border-gray-700 bg-gray-900"
-            } else {
-                "border-b border-gray-200 bg-gray-50"
-            }
-        }>
+        <div class="border-b border-gray-200 dark:border-gray-700 bg-gray-50 dark:bg-gray-900">
             <div class="flex items-center">
                 {move || {
                     let tabs = app_state.tab_manager.get().tabs.clone();
@@ -76,17 +69,9 @@ pub fn TabBar() -> impl IntoView {
                                         <div
                                             class=move || {
                                                 let base = if is_active {
-                                                    if dark_mode.get() {
-                                                        "bg-gray-800 border-b-2 border-blue-500 text-white"
-                                                    } else {
-                                                        "bg-white border-b-2 border-blue-500 text-gray-900"
-                                                    }
+                                                    "bg-white dark:bg-gray-800 border-b-2 border-blue-500 text-gray-900 dark:text-white"
                                                 } else {
-                                                    if dark_mode.get() {
-                                                        "bg-gray-900 text-gray-400 hover:bg-gray-800"
-                                                    } else {
-                                                        "bg-gray-50 text-gray-600 hover:bg-gray-100"
-                                                    }
+                                                    "bg-gray-50 dark:bg-gray-900 text-gray-600 dark:text-gray-400 hover:bg-gray-100 dark:hover:bg-gray-800"
                                                 };
                                                 format!("flex items-center px-4 py-2 cursor-pointer border-r border-gray-700/50 {}", base)
                                             }
@@ -96,13 +81,7 @@ pub fn TabBar() -> impl IntoView {
                                             {if !is_home_tab {
                                                 view! {
                                                     <button
-                                                        class=move || {
-                                                            if dark_mode.get() {
-                                                                "ml-2 p-0.5 rounded hover:bg-gray-700 text-gray-400"
-                                                            } else {
-                                                                "ml-2 p-0.5 rounded hover:bg-gray-200 text-gray-500"
-                                                            }
-                                                        }
+                                                        class="ml-2 p-0.5 rounded hover:bg-gray-200 dark:hover:bg-gray-700 text-gray-500 dark:text-gray-400"
                                                         on:click=move |ev| {
                                                             ev.stop_propagation();
                                                             remove_tab(tab_id_remove.clone());
@@ -114,7 +93,8 @@ pub fn TabBar() -> impl IntoView {
                                                     </button>
                                                 }.into_any()
                                             } else {
-                                                view! {}.into_any()
+                                                let _: () = view! {};
+                                                ().into_any()
                                             }}
                                         </div>
                                     }

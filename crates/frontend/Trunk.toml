@@ -1,9 +1,18 @@
 [build]
 target = "./index.html"
+integrity = "none"
 
 [watch]
-ignore = ["../backend", "../shared"]
+ignore = ["../domain", "../infrastructure", "../interfaces", "../application"]
 
 [serve]
 port = 8080
 open = false
+
+[[proxy]]
+rewrite = "/api"
+backend = "http://localhost:3000/api"
+
+[[proxy]]
+rewrite = "/health"
+backend = "http://localhost:3000/health"

@@ -19,11 +19,11 @@ fn open_tab(app_state: &crate::state::AppState, id: &str, kind: TabKind, title: 
 pub fn HeaderBar(
     sidebar_open: ReadSignal<bool>,
     set_sidebar_open: WriteSignal<bool>,
-    dark_mode: RwSignal<bool>,
 ) -> impl IntoView {
     let _ = sidebar_open;
     let (active_menu, set_active_menu) = signal(None::<String>);
     let app_state = use_app_state();
+    let dark_mode = app_state.dark_mode;
 
     let open_query_tab = {
         let app_state = app_state.clone();
@@ -142,22 +142,10 @@ pub fn HeaderBar(
     let open_query_tab_btn = open_query_tab.clone();
 
     view! {
-        <header class=move || {
-            if dark_mode.get() {
-                "bg-gray-800 border-b border-gray-700 flex-shrink-0"
-            } else {
-                "bg-white border-b border-gray-200 flex-shrink-0"
-            }
-        }>
+        <header class="bg-white dark:bg-gray-800 border-b border-gray-200 dark:border-gray-700 flex-shrink-0">
             <div class="flex items-center h-12 px-4">
                 <button
-                    class=move || {
-                        if dark_mode.get() {
-                            "p-2 rounded hover:bg-gray-700 mr-3"
-                        } else {
-                            "p-2 rounded hover:bg-gray-100 mr-3"
-                        }
-                    }
+                    class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 mr-3"
                     on:click=move |_| set_sidebar_open.update(|v| *v = !*v)
                 >
                     <svg class="w-5 h-5 text-gray-600" fill="none" stroke="currentColor" viewBox="0 0 24 24">
@@ -166,13 +154,7 @@ pub fn HeaderBar(
                 </button>
 
                 <button
-                    class=move || {
-                        if dark_mode.get() {
-                            "text-lg font-bold text-blue-600 mr-6 px-2 py-1 rounded hover:bg-gray-700 active:bg-gray-600 cursor-pointer transition-colors"
-                        } else {
-                            "text-lg font-bold text-blue-600 mr-6 px-2 py-1 rounded hover:bg-gray-100 active:bg-gray-200 cursor-pointer transition-colors"
-                        }
-                    }
+                    class="text-lg font-bold text-blue-600 mr-6 px-2 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 active:bg-gray-200 dark:active:bg-gray-600 cursor-pointer transition-colors"
                     on:click={
                         let app_state = app_state.clone();
                         move |_| {
@@ -196,13 +178,7 @@ pub fn HeaderBar(
                         }
                         on:mouseleave=move |_| set_active_menu.set(None)
                     >
-                        <button class=move || {
-                            if dark_mode.get() {
-                                "px-3 py-1 rounded hover:bg-gray-700 text-gray-300"
-                            } else {
-                                "px-3 py-1 rounded hover:bg-gray-100 text-gray-700"
-                            }
-                        }
+                        <button class="px-3 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                         on:click=move |_| {
                             if active_menu.get() == Some("file".to_string()) {
                                 set_active_menu.set(None);
@@ -213,21 +189,9 @@ pub fn HeaderBar(
                         >"File"</button>
                         {move || if active_menu.get() == Some("file".to_string()) {
                             view! {
-                                <div class=move || {
-                                    if dark_mode.get() {
-                                        "absolute top-full left-0 bg-gray-800 border border-gray-700 rounded shadow-lg py-1 min-w-40 z-50"
-                                    } else {
-                                        "absolute top-full left-0 bg-white border rounded shadow-lg py-1 min-w-40 z-50"
-                                    }
-                                }>
+                                <div class="absolute top-full left-0 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded shadow-lg py-1 min-w-40 z-50">
                                     <div
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "block px-4 py-2 hover:bg-gray-700 text-gray-300 cursor-pointer"
-                                            } else {
-                                                "block px-4 py-2 hover:bg-gray-100 text-gray-700 cursor-pointer"
-                                            }
-                                        }
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
                                         on:click={
                                             let open_connections_tab = open_connections_tab.clone();
                                             move |_| {
@@ -239,13 +203,7 @@ pub fn HeaderBar(
                                         "New Connection"
                                     </div>
                                     <div
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "block px-4 py-2 hover:bg-gray-700 text-gray-300 cursor-pointer"
-                                            } else {
-                                                "block px-4 py-2 hover:bg-gray-100 text-gray-700 cursor-pointer"
-                                            }
-                                        }
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
                                         on:click={
                                             let open_query_tab = open_query_tab.clone();
                                             move |_| {
@@ -259,7 +217,8 @@ pub fn HeaderBar(
                                 </div>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }}
                     </div>
 
@@ -272,13 +231,7 @@ pub fn HeaderBar(
                         }
                         on:mouseleave=move |_| set_active_menu.set(None)
                     >
-                        <button class=move || {
-                            if dark_mode.get() {
-                                "px-3 py-1 rounded hover:bg-gray-700 text-gray-300"
-                            } else {
-                                "px-3 py-1 rounded hover:bg-gray-100 text-gray-700"
-                            }
-                        }
+                        <button class="px-3 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                         on:click=move |_| {
                             if active_menu.get() == Some("edit".to_string()) {
                                 set_active_menu.set(None);
@@ -289,21 +242,9 @@ pub fn HeaderBar(
                         >"Edit"</button>
                         {move || if active_menu.get() == Some("edit".to_string()) {
                             view! {
-                                <div class=move || {
-                                    if dark_mode.get() {
-                                        "absolute top-full left-0 bg-gray-800 border border-gray-700 rounded shadow-lg py-1 min-w-40 z-50"
-                                    } else {
-                                        "absolute top-full left-0 bg-white border rounded shadow-lg py-1 min-w-40 z-50"
-                                    }
-                                }>
+                                <div class="absolute top-full left-0 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded shadow-lg py-1 min-w-40 z-50">
                                     <div
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "block px-4 py-2 hover:bg-gray-700 text-gray-300 cursor-pointer"
-                                            } else {
-                                                "block px-4 py-2 hover:bg-gray-100 text-gray-700 cursor-pointer"
-                                            }
-                                        }
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
                                         on:click={
                                             let open_query_history_tab = open_query_history_tab.clone();
                                             move |_| {
@@ -315,13 +256,7 @@ pub fn HeaderBar(
                                         "Query History"
                                     </div>
                                     <div
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "block px-4 py-2 hover:bg-gray-700 text-gray-300 cursor-pointer"
-                                            } else {
-                                                "block px-4 py-2 hover:bg-gray-100 text-gray-700 cursor-pointer"
-                                            }
-                                        }
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
                                         on:click={
                                             let open_bookmarks_tab = open_bookmarks_tab.clone();
                                             move |_| {
@@ -335,7 +270,8 @@ pub fn HeaderBar(
                                 </div>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }}
                     </div>
 
@@ -348,13 +284,7 @@ pub fn HeaderBar(
                         }
                         on:mouseleave=move |_| set_active_menu.set(None)
                     >
-                        <button class=move || {
-                            if dark_mode.get() {
-                                "px-3 py-1 rounded hover:bg-gray-700 text-gray-300"
-                            } else {
-                                "px-3 py-1 rounded hover:bg-gray-100 text-gray-700"
-                            }
-                        }
+                        <button class="px-3 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                         on:click=move |_| {
                             if active_menu.get() == Some("view".to_string()) {
                                 set_active_menu.set(None);
@@ -365,21 +295,9 @@ pub fn HeaderBar(
                         >"View"</button>
                         {move || if active_menu.get() == Some("view".to_string()) {
                             view! {
-                                <div class=move || {
-                                    if dark_mode.get() {
-                                        "absolute top-full left-0 bg-gray-800 border border-gray-700 rounded shadow-lg py-1 min-w-40 z-50"
-                                    } else {
-                                        "absolute top-full left-0 bg-white border rounded shadow-lg py-1 min-w-40 z-50"
-                                    }
-                                }>
+                                <div class="absolute top-full left-0 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded shadow-lg py-1 min-w-40 z-50">
                                     <div
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "block px-4 py-2 hover:bg-gray-700 text-gray-300 cursor-pointer"
-                                            } else {
-                                                "block px-4 py-2 hover:bg-gray-100 text-gray-700 cursor-pointer"
-                                            }
-                                        }
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
                                         on:click={
                                             let open_appearance_tab = open_appearance_tab.clone();
                                             move |_| {
@@ -391,13 +309,7 @@ pub fn HeaderBar(
                                         "Appearance"
                                     </div>
                                     <div
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "block px-4 py-2 hover:bg-gray-700 text-gray-300 cursor-pointer"
-                                            } else {
-                                                "block px-4 py-2 hover:bg-gray-100 text-gray-700 cursor-pointer"
-                                            }
-                                        }
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
                                         on:click={
                                             let open_layout_tab = open_layout_tab.clone();
                                             move |_| {
@@ -411,7 +323,8 @@ pub fn HeaderBar(
                                 </div>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }}
                     </div>
 
@@ -424,13 +337,7 @@ pub fn HeaderBar(
                         }
                         on:mouseleave=move |_| set_active_menu.set(None)
                     >
-                        <button class=move || {
-                            if dark_mode.get() {
-                                "px-3 py-1 rounded hover:bg-gray-700 text-gray-300"
-                            } else {
-                                "px-3 py-1 rounded hover:bg-gray-100 text-gray-700"
-                            }
-                        }
+                        <button class="px-3 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                         on:click=move |_| {
                             if active_menu.get() == Some("tools".to_string()) {
                                 set_active_menu.set(None);
@@ -441,21 +348,9 @@ pub fn HeaderBar(
                         >"Tools"</button>
                         {move || if active_menu.get() == Some("tools".to_string()) {
                             view! {
-                                <div class=move || {
-                                    if dark_mode.get() {
-                                        "absolute top-full left-0 bg-gray-800 border border-gray-700 rounded shadow-lg py-1 min-w-40 z-50"
-                                    } else {
-                                        "absolute top-full left-0 bg-white border rounded shadow-lg py-1 min-w-40 z-50"
-                                    }
-                                }>
+                                <div class="absolute top-full left-0 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded shadow-lg py-1 min-w-40 z-50">
                                     <div
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "block px-4 py-2 hover:bg-gray-700 text-gray-300 cursor-pointer"
-                                            } else {
-                                                "block px-4 py-2 hover:bg-gray-100 text-gray-700 cursor-pointer"
-                                            }
-                                        }
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
                                         on:click={
                                             let open_database_tools_tab = open_database_tools_tab.clone();
                                             move |_| {
@@ -467,13 +362,7 @@ pub fn HeaderBar(
                                         "Database Tools"
                                     </div>
                                     <div
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "block px-4 py-2 hover:bg-gray-700 text-gray-300 cursor-pointer"
-                                            } else {
-                                                "block px-4 py-2 hover:bg-gray-100 text-gray-700 cursor-pointer"
-                                            }
-                                        }
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
                                         on:click={
                                             let open_sql_utilities_tab = open_sql_utilities_tab.clone();
                                             move |_| {
@@ -487,7 +376,8 @@ pub fn HeaderBar(
                                 </div>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }}
                     </div>
 
@@ -500,13 +390,7 @@ pub fn HeaderBar(
                         }
                         on:mouseleave=move |_| set_active_menu.set(None)
                     >
-                        <button class=move || {
-                            if dark_mode.get() {
-                                "px-3 py-1 rounded hover:bg-gray-700 text-gray-300"
-                            } else {
-                                "px-3 py-1 rounded hover:bg-gray-100 text-gray-700"
-                            }
-                        }
+                        <button class="px-3 py-1 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300"
                         on:click=move |_| {
                             if active_menu.get() == Some("help".to_string()) {
                                 set_active_menu.set(None);
@@ -517,21 +401,9 @@ pub fn HeaderBar(
                         >"Help"</button>
                         {move || if active_menu.get() == Some("help".to_string()) {
                             view! {
-                                <div class=move || {
-                                    if dark_mode.get() {
-                                        "absolute top-full left-0 bg-gray-800 border border-gray-700 rounded shadow-lg py-1 min-w-40 z-50"
-                                    } else {
-                                        "absolute top-full left-0 bg-white border rounded shadow-lg py-1 min-w-40 z-50"
-                                    }
-                                }>
+                                <div class="absolute top-full left-0 bg-white dark:bg-gray-800 border dark:border-gray-700 rounded shadow-lg py-1 min-w-40 z-50">
                                     <div
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "block px-4 py-2 hover:bg-gray-700 text-gray-300 cursor-pointer"
-                                            } else {
-                                                "block px-4 py-2 hover:bg-gray-100 text-gray-700 cursor-pointer"
-                                            }
-                                        }
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
                                         on:click={
                                             let open_quick_start_tab = open_quick_start_tab.clone();
                                             move |_| {
@@ -543,13 +415,7 @@ pub fn HeaderBar(
                                         "Quick Start"
                                     </div>
                                     <div
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "block px-4 py-2 hover:bg-gray-700 text-gray-300 cursor-pointer"
-                                            } else {
-                                                "block px-4 py-2 hover:bg-gray-100 text-gray-700 cursor-pointer"
-                                            }
-                                        }
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
                                         on:click={
                                             let open_keyboard_shortcuts_tab = open_keyboard_shortcuts_tab.clone();
                                             move |_| {
@@ -561,13 +427,7 @@ pub fn HeaderBar(
                                         "Keyboard Shortcuts"
                                     </div>
                                     <div
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "block px-4 py-2 hover:bg-gray-700 text-gray-300 cursor-pointer"
-                                            } else {
-                                                "block px-4 py-2 hover:bg-gray-100 text-gray-700 cursor-pointer"
-                                            }
-                                        }
+                                        class="block px-4 py-2 hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-300 cursor-pointer"
                                         on:click={
                                             let open_about_tab = open_about_tab.clone();
                                             move |_| {
@@ -581,7 +441,8 @@ pub fn HeaderBar(
                                 </div>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }}
                     </div>
                 </nav>
@@ -590,13 +451,7 @@ pub fn HeaderBar(
 
                 <div class="flex items-center space-x-2">
                     <button
-                        class=move || {
-                            if dark_mode.get() {
-                                "p-2 rounded hover:bg-gray-700 text-gray-300"
-                            } else {
-                                "p-2 rounded hover:bg-gray-100 text-gray-600"
-                            }
-                        }
+                        class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
                         title="Refresh"
                         on:click=move |_| {
                             app_state.refresh_trigger.update(|v| *v += 1);
@@ -607,13 +462,7 @@ pub fn HeaderBar(
                         </svg>
                     </button>
                     <button
-                        class=move || {
-                            if dark_mode.get() {
-                                "p-2 rounded hover:bg-gray-700 text-gray-300"
-                            } else {
-                                "p-2 rounded hover:bg-gray-100 text-gray-600"
-                            }
-                        }
+                        class="p-2 rounded hover:bg-gray-100 dark:hover:bg-gray-700 text-gray-600 dark:text-gray-300"
                         on:click=move |_| dark_mode.update(|v| *v = !*v)
                         title=move || if dark_mode.get() { "Switch to Light Mode" } else { "Switch to Dark Mode" }
                     >

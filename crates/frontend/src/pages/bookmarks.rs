@@ -12,7 +12,6 @@ struct BookmarkItem {
 #[component]
 pub fn BookmarksPage() -> impl IntoView {
     let app_state = use_app_state();
-    let dark_mode = app_state.dark_mode;
     let (bookmarks, set_bookmarks) = signal(vec![
         BookmarkItem { id: 1, name: "Get Active Users".to_string(), sql: "SELECT * FROM users WHERE active = 1 ORDER BY last_login DESC".to_string() },
         BookmarkItem { id: 2, name: "Daily Stats".to_string(), sql: "SELECT date(created_at) as day, COUNT(*) as count FROM posts GROUP BY day".to_string() },
@@ -20,73 +19,31 @@ pub fn BookmarksPage() -> impl IntoView {
     let (status_msg, set_status_msg) = signal(None::<String>);
 
     view! {
-        <div class=move || {
-            if dark_mode.get() {
-                "min-h-full bg-gray-900 p-6"
-            } else {
-                "min-h-full bg-white p-6"
-            }
-        }>
+        <div class="min-h-full bg-white dark:bg-gray-900 p-6">
             <div class="max-w-4xl mx-auto">
                 <div class="flex items-center mb-6">
-                    <h1 class=move || {
-                        if dark_mode.get() {
-                            "text-2xl font-bold text-white"
-                        } else {
-                            "text-2xl font-bold text-gray-900"
-                        }
-                    }>"Bookmarks"</h1>
+                    <h1 class="text-2xl font-bold text-gray-900 dark:text-white">"Bookmarks"</h1>
                 </div>
 
                 {move || {
                     let msg = status_msg.get();
                     msg.map(|m| view! {
-                        <div class=move || {
-                            if dark_mode.get() {
-                                "mb-4 px-4 py-3 bg-blue-900 border border-blue-700 text-blue-300 rounded-lg"
-                            } else {
-                                "mb-4 px-4 py-3 bg-blue-50 border border-blue-200 text-blue-700 rounded-lg"
-                            }
-                        }>
+                        <div class="mb-4 px-4 py-3 bg-blue-50 dark:bg-blue-900 border border-blue-200 dark:border-blue-700 text-blue-700 dark:text-blue-300 rounded-lg">
                             {m}
                         </div>
                     })
                 }}
 
-                <div class=move || {
-                    if dark_mode.get() {
-                        "bg-gray-800 rounded-lg p-6"
-                    } else {
-                        "bg-gray-50 rounded-lg p-6"
-                    }
-                }>
+                <div class="bg-gray-50 dark:bg-gray-800 rounded-lg p-6">
                     <div class="space-y-3">
                         {move || {
                             bookmarks.get().into_iter().map(|item| {
                                 view! {
-                                    <div class=move || {
-                                        if dark_mode.get() {
-                                            "px-4 py-3 bg-gray-700 rounded"
-                                        } else {
-                                            "px-4 py-3 bg-white rounded border"
-                                        }
-                                    }>
+                                    <div class="px-4 py-3 bg-white dark:bg-gray-700 rounded border dark:border-0">
                                         <div class="flex items-center justify-between">
                                             <div class="flex-1 min-w-0 mr-4">
-                                                <span class=move || {
-                                                    if dark_mode.get() {
-                                                        "text-gray-200 font-medium"
-                                                    } else {
-                                                        "text-gray-800 font-medium"
-                                                    }
-                                                }>{item.name.clone()}</span>
-                                                <p class=move || {
-                                                    if dark_mode.get() {
-                                                        "text-gray-400 text-sm mt-1 truncate"
-                                                    } else {
-                                                        "text-gray-500 text-sm mt-1 truncate"
-                                                    }
-                                                }>{item.sql.clone()}</p>
+                                                <span class="text-gray-800 dark:text-gray-200 font-medium">{item.name.clone()}</span>
+                                                <p class="text-gray-500 dark:text-gray-400 text-sm mt-1 truncate">{item.sql.clone()}</p>
                                             </div>
                                             <div class="flex space-x-2 flex-shrink-0">
                                                 <button
@@ -130,16 +87,11 @@ pub fn BookmarksPage() -> impl IntoView {
                         let items = bookmarks.get();
                         if items.is_empty() {
                             view! {
-                                <div class=move || {
-                                    if dark_mode.get() {
-                                        "text-center py-8 text-gray-500"
-                                    } else {
-                                        "text-center py-8 text-gray-400"
-                                    }
-                                }>"No bookmarks yet."</div>
+                                <div class="text-center py-8 text-gray-400 dark:text-gray-500">"No bookmarks yet."</div>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }
                     }}
                     <button

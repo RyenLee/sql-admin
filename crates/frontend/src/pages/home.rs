@@ -1,21 +1,16 @@
-use crate::state::AppState;
 use crate::tab_manager::{Tab, TabKind, make_connections_tab_id, make_query_tab_id};
 use leptos::prelude::*;
+use crate::state::AppState;
 
 #[component]
 pub fn Home() -> impl IntoView {
     let app_state = use_context::<AppState>();
-    let dark_mode = app_state
-        .as_ref()
-        .map(|s| s.dark_mode)
-        .unwrap_or(RwSignal::new(false));
-    let tab_manager = app_state.as_ref().map(|s| s.tab_manager.clone());
+    let tab_manager = app_state.as_ref().map(|s| s.tab_manager);
 
     let open_connections_tab = {
-        let tab_manager = tab_manager.clone();
         let app_state_clone = app_state.clone();
         move || {
-            if let (Some(tm), Some(state)) = (tab_manager.clone(), app_state_clone.clone()) {
+            if let (Some(tm), Some(state)) = (tab_manager, app_state_clone.clone()) {
                 let tab = Tab {
                     id: make_connections_tab_id(),
                     kind: TabKind::Connections,
@@ -30,10 +25,9 @@ pub fn Home() -> impl IntoView {
     };
 
     let open_query_tab = {
-        let tab_manager = tab_manager.clone();
         let app_state_clone = app_state.clone();
         move || {
-            if let (Some(tm), Some(state)) = (tab_manager.clone(), app_state_clone.clone()) {
+            if let (Some(tm), Some(state)) = (tab_manager, app_state_clone.clone()) {
                 let tab = Tab {
                     id: make_query_tab_id(String::new()),
                     kind: TabKind::Query {
@@ -51,31 +45,21 @@ pub fn Home() -> impl IntoView {
 
     view! {
         <div class="text-center">
-            <h1 class=move || {
-                if dark_mode.get() { "text-4xl font-bold text-gray-100 mb-4" } else { "text-4xl font-bold text-gray-800 mb-4" }
-            }>
-                <a 
-                    href="https://github.com" 
-                    target="_blank" 
+            <h1 class="text-4xl font-bold text-gray-800 dark:text-gray-100 mb-4">
+                <a
+                    href="https://github.com"
+                    target="_blank"
                     rel="noopener noreferrer"
                     class="hover:text-blue-500 transition-colors"
                 >"Welcome to LiteAdmin"</a>
             </h1>
-            <p class=move || {
-                if dark_mode.get() { "text-gray-400 mb-8" } else { "text-gray-600 mb-8" }
-            }>"A modern web-based SQL management tool built with Rust"</p>
+            <p class="text-gray-600 dark:text-gray-400 mb-8">"A modern web-based SQL management tool built with Rust"</p>
 
             <div class="grid grid-cols-3 gap-6 max-w-4xl mx-auto">
-                <div class=move || {
-                    if dark_mode.get() { "bg-gray-800 rounded-lg shadow p-6" } else { "bg-white rounded-lg shadow p-6" }
-                }>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <div class="text-4xl mb-4">"🔗"</div>
-                    <h3 class=move || {
-                        if dark_mode.get() { "text-xl font-semibold mb-2 text-gray-100" } else { "text-xl font-semibold mb-2" }
-                    }>"Manage Connections"</h3>
-                    <p class=move || {
-                        if dark_mode.get() { "text-gray-400 text-sm" } else { "text-gray-500 text-sm" }
-                    }>"Create and manage database connections"</p>
+                    <h3 class="text-xl font-semibold mb-2 dark:text-gray-100">"Manage Connections"</h3>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">"Create and manage database connections"</p>
                     <div
                         class="inline-block mt-4 text-blue-600 hover:text-blue-800 cursor-pointer"
                         on:click={
@@ -87,16 +71,10 @@ pub fn Home() -> impl IntoView {
                     </div>
                 </div>
 
-                <div class=move || {
-                    if dark_mode.get() { "bg-gray-800 rounded-lg shadow p-6" } else { "bg-white rounded-lg shadow p-6" }
-                }>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <div class="text-4xl mb-4">"📝"</div>
-                    <h3 class=move || {
-                        if dark_mode.get() { "text-xl font-semibold mb-2 text-gray-100" } else { "text-xl font-semibold mb-2" }
-                    }>"Execute Queries"</h3>
-                    <p class=move || {
-                        if dark_mode.get() { "text-gray-400 text-sm" } else { "text-gray-500 text-sm" }
-                    }>"Run SQL queries and view results"</p>
+                    <h3 class="text-xl font-semibold mb-2 dark:text-gray-100">"Execute Queries"</h3>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">"Run SQL queries and view results"</p>
                     <div
                         class="inline-block mt-4 text-blue-600 hover:text-blue-800 cursor-pointer"
                         on:click={
@@ -108,16 +86,10 @@ pub fn Home() -> impl IntoView {
                     </div>
                 </div>
 
-                <div class=move || {
-                    if dark_mode.get() { "bg-gray-800 rounded-lg shadow p-6" } else { "bg-white rounded-lg shadow p-6" }
-                }>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow p-6">
                     <div class="text-4xl mb-4">"⚡"</div>
-                    <h3 class=move || {
-                        if dark_mode.get() { "text-xl font-semibold mb-2 text-gray-100" } else { "text-xl font-semibold mb-2" }
-                    }>"Built with Rust"</h3>
-                    <p class=move || {
-                        if dark_mode.get() { "text-gray-400 text-sm" } else { "text-gray-500 text-sm" }
-                    }>"Fast, safe, and reliable"</p>
+                    <h3 class="text-xl font-semibold mb-2 dark:text-gray-100">"Built with Rust"</h3>
+                    <p class="text-gray-500 dark:text-gray-400 text-sm">"Fast, safe, and reliable"</p>
                 </div>
             </div>
         </div>

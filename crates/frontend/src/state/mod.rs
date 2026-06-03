@@ -1,5 +1,6 @@
 use crate::tab_manager::{Tab, TabKind, TabManager, make_home_tab_id};
 use leptos::prelude::*;
+use sql_admin_api_types::{Connection, DatabaseType};
 
 #[derive(Clone, Debug)]
 pub struct AppStatus {
@@ -31,6 +32,8 @@ pub struct AppState {
     pub tab_manager: RwSignal<TabManager>,
     pub refresh_trigger: RwSignal<u32>,
     pub pending_navigation: RwSignal<Option<String>>,
+    pub active_db_type: RwSignal<Option<DatabaseType>>,
+    pub connections: RwSignal<Vec<Connection>>,
 }
 
 pub fn provide_app_state() {
@@ -48,6 +51,8 @@ pub fn provide_app_state() {
         tab_manager: RwSignal::new(tab_manager),
         refresh_trigger: RwSignal::new(0),
         pending_navigation: RwSignal::new(None),
+        active_db_type: RwSignal::new(None),
+        connections: RwSignal::new(Vec::new()),
     };
     provide_context(state);
 }

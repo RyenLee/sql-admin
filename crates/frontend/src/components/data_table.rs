@@ -9,10 +9,6 @@ pub fn DataTable(
     #[prop(optional)] on_cell_edit: Option<Callback<(usize, usize, String), ()>>,
     #[prop(optional)] on_row_delete: Option<Callback<usize, ()>>,
 ) -> impl IntoView {
-    let app_state = use_context::<crate::state::AppState>();
-    let dark_mode = app_state
-        .map(|s| s.dark_mode)
-        .unwrap_or(RwSignal::new(false));
     let rows = StoredValue::new(rows);
     let (editing_cell, set_editing_cell) = signal(None::<(usize, usize)>);
     let (edit_value, set_edit_value) = signal(String::new());
@@ -49,11 +45,10 @@ pub fn DataTable(
     };
 
     let commit_edit = move |_| {
-        if let Some((row_idx, col_idx)) = editing_cell.get() {
-            if let Some(ref cb) = on_cell_edit {
+        if let Some((row_idx, col_idx)) = editing_cell.get()
+            && let Some(ref cb) = on_cell_edit {
                 cb.run((row_idx, col_idx, edit_value.get()));
             }
-        }
         set_editing_cell.set(None);
     };
 
@@ -115,7 +110,7 @@ pub fn DataTable(
 
     #[cfg(target_arch = "wasm32")]
     fn copy_to_clipboard(text: &str) {
-        let window = web_sys::window().unwrap();
+        let Some(window) = web_sys::window() else { return };
         let navigator = window.navigator();
         let clipboard = navigator.clipboard();
         let _ = clipboard.write_text(text);
@@ -166,29 +161,11 @@ pub fn DataTable(
     };
 
     view! {
-        <div class=move || {
-            if dark_mode.get() {
-                "overflow-auto flex-1 max-h-[70vh] min-h-[150px] bg-gray-900"
-            } else {
-                "overflow-auto flex-1 max-h-[70vh] min-h-[150px]"
-            }
-        }>
+        <div class="overflow-auto flex-1 max-h-[70vh] min-h-[150px] dark:bg-gray-900">
             {move || if editable && !selected_rows.get().is_empty() {
                 view! {
-                    <div class=move || {
-                        if dark_mode.get() {
-                            "sticky top-0 bg-yellow-900 border-b border-yellow-700 px-3 py-2 flex items-center gap-3 z-10"
-                        } else {
-                            "sticky top-0 bg-yellow-50 border-b px-3 py-2 flex items-center gap-3 z-10"
-                        }
-                    }>
-                        <span class=move || {
-                            if dark_mode.get() {
-                                "text-xs text-yellow-200"
-                            } else {
-                                "text-xs text-yellow-800"
-                            }
-                        }>
+                    <div class="sticky top-0 bg-yellow-50 dark:bg-yellow-900 border-b border-yellow-700 dark:border-yellow-700 px-3 py-2 flex items-center gap-3 z-10">
+                        <span class="text-xs text-yellow-800 dark:text-yellow-200">
                             {move || format!("{} row(s) selected", selected_rows.get().len())}
                         </span>
                         <button
@@ -200,17 +177,12 @@ pub fn DataTable(
                     </div>
                 }.into_any()
             } else {
-                view! {}.into_any()
+                let _: () = view! {};
+                ().into_any()
             }}
 
             <table class="w-full text-sm">
-                <thead class=move || {
-                    if dark_mode.get() {
-                        "sticky top-0 bg-gray-800 z-10"
-                    } else {
-                        "sticky top-0 bg-gray-50 z-10"
-                    }
-                }>
+                <thead class="sticky top-0 bg-gray-50 dark:bg-gray-800 z-10">
                     <tr>
                         {if editable {
                             view! {
@@ -227,7 +199,8 @@ pub fn DataTable(
                                 </th>
                             }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }}
 
                         {columns.iter().enumerate().map(|(col_idx, col)| {
@@ -235,13 +208,7 @@ pub fn DataTable(
                             let col_idx_clone = col_idx;
                             view! {
                                 <th
-                                    class=move || {
-                                        if dark_mode.get() {
-                                            "px-3 py-2 text-left font-medium text-gray-300 whitespace-nowrap cursor-pointer select-none hover:bg-gray-700"
-                                        } else {
-                                            "px-3 py-2 text-left font-medium text-gray-600 whitespace-nowrap cursor-pointer select-none hover:bg-gray-100"
-                                        }
-                                    }
+                                    class="px-3 py-2 text-left font-medium text-gray-600 dark:text-gray-300 whitespace-nowrap cursor-pointer select-none hover:bg-gray-100 dark:hover:bg-gray-700"
                                     on:click=move |_| handle_sort(col_idx_clone)
                                 >
                                     <span class="flex items-center gap-1">
@@ -254,7 +221,8 @@ pub fn DataTable(
                                                     view! { <span class="text-xs">"▲"</span> }.into_any()
                                                 }
                                             } else {
-                                                view! {}.into_any()
+                                                let _: () = view! {};
+                                                ().into_any()
                                             }
                                         }}
                                     </span>
@@ -262,17 +230,12 @@ pub fn DataTable(
                             }
                         }).collect_view()}
                     </tr>
-                    <tr class=move || {
-                        if dark_mode.get() {
-                            "bg-gray-800"
-                        } else {
-                            "bg-gray-50"
-                        }
-                    }>
+                    <tr class="bg-gray-50 dark:bg-gray-800">
                         {if editable {
                             view! { <th class="px-2 py-1"></th> }.into_any()
                         } else {
-                            view! {}.into_any()
+                            let _: () = view! {};
+                            ().into_any()
                         }}
                         {columns.iter().enumerate().map(|(col_idx, _col)| {
                             let col_idx_clone = col_idx;
@@ -280,13 +243,7 @@ pub fn DataTable(
                                 <th class="px-1 py-1">
                                     <input
                                         type="text"
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "w-full px-2 py-0.5 text-xs border border-gray-600 bg-gray-700 text-gray-200 rounded focus:outline-none focus:border-blue-400"
-                                            } else {
-                                                "w-full px-2 py-0.5 text-xs border border-gray-200 rounded focus:outline-none focus:border-blue-400"
-                                            }
-                                        }
+                                        class="w-full px-2 py-0.5 text-xs border border-gray-200 dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded focus:outline-none focus:border-blue-400"
                                         placeholder="Filter..."
                                         prop:value=move || column_filters.get().get(col_idx_clone).cloned().unwrap_or_default()
                                         on:input=move |ev| {
@@ -314,17 +271,9 @@ pub fn DataTable(
                                 <tr class=move || {
                                     let is_selected = selected_rows.get().contains(&row_idx);
                                     if is_selected {
-                                        if dark_mode.get() {
-                                            "border-t bg-yellow-900"
-                                        } else {
-                                            "border-t bg-yellow-50"
-                                        }
+                                        "border-t bg-yellow-50 dark:bg-yellow-900"
                                     } else {
-                                        if dark_mode.get() {
-                                            "border-t border-gray-700 hover:bg-gray-800"
-                                        } else {
-                                            "border-t hover:bg-blue-50"
-                                        }
+                                        "border-t border-gray-700 dark:border-gray-700 hover:bg-blue-50 dark:hover:bg-gray-800"
                                     }
                                 }>
                                     {if editable {
@@ -339,7 +288,8 @@ pub fn DataTable(
                                             </td>
                                         }.into_any()
                                     } else {
-                                        view! {}.into_any()
+                                        let _: () = view! {};
+                                        ().into_any()
                                     }}
 
                                     {row.iter().enumerate().map(|(col_idx, cell)| {
@@ -353,13 +303,7 @@ pub fn DataTable(
                                                 <td class="px-1 py-0.5">
                                                     <input
                                                         type="text"
-                                                        class=move || {
-                                                            if dark_mode.get() {
-                                                                "w-full px-2 py-1 border border-blue-400 rounded text-sm bg-gray-800 text-white focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                                            } else {
-                                                                "w-full px-2 py-1 border border-blue-400 rounded text-sm focus:outline-none focus:ring-1 focus:ring-blue-400"
-                                                            }
-                                                        }
+                                                        class="w-full px-2 py-1 border border-blue-400 rounded text-sm dark:bg-gray-800 dark:text-white focus:outline-none focus:ring-1 focus:ring-blue-400"
                                                         prop:value=edit_value
                                                         on:input=move |ev| set_edit_value.set(event_target_value(&ev))
                                                         on:keydown=move |ev| {
@@ -377,23 +321,11 @@ pub fn DataTable(
                                             view! {
                                                 <td
                                                     class=if is_null {
-                                                        if dark_mode.get() {
-                                                            "px-3 py-1.5 text-gray-500 italic whitespace-nowrap cursor-default"
-                                                        } else {
-                                                            "px-3 py-1.5 text-gray-400 italic whitespace-nowrap cursor-default"
-                                                        }
+                                                        "px-3 py-1.5 text-gray-400 dark:text-gray-500 italic whitespace-nowrap cursor-default"
                                                     } else if editable {
-                                                        if dark_mode.get() {
-                                                            "px-3 py-1.5 text-gray-200 whitespace-nowrap max-w-xs truncate cursor-pointer hover:bg-gray-700"
-                                                        } else {
-                                                            "px-3 py-1.5 text-gray-800 whitespace-nowrap max-w-xs truncate cursor-pointer hover:bg-blue-100"
-                                                        }
+                                                        "px-3 py-1.5 text-gray-800 dark:text-gray-200 whitespace-nowrap max-w-xs truncate cursor-pointer hover:bg-blue-100 dark:hover:bg-gray-700"
                                                     } else {
-                                                        if dark_mode.get() {
-                                                            "px-3 py-1.5 text-gray-200 whitespace-nowrap max-w-xs truncate"
-                                                        } else {
-                                                            "px-3 py-1.5 text-gray-800 whitespace-nowrap max-w-xs truncate"
-                                                        }
+                                                        "px-3 py-1.5 text-gray-800 dark:text-gray-200 whitespace-nowrap max-w-xs truncate"
                                                     }
                                                     on:dblclick=move |_| {
                                                         if editable {
@@ -422,36 +354,18 @@ pub fn DataTable(
                 if let Some((menu_row_idx, menu_col_idx, x, y)) = context_menu.get() {
                     view! {
                         <div
-                            class=move || {
-                                if dark_mode.get() {
-                                    "fixed z-50 bg-gray-800 border border-gray-600 rounded-lg shadow-lg py-1 min-w-[140px] text-sm"
-                                } else {
-                                    "fixed z-50 bg-white border rounded-lg shadow-lg py-1 min-w-[140px] text-sm"
-                                }
-                            }
+                            class="fixed z-50 bg-white dark:bg-gray-800 border dark:border-gray-600 rounded-lg shadow-lg py-1 min-w-[140px] text-sm"
                             style=format!("left: {}px; top: {}px", x as i32, y as i32)
                             on:click=move |ev| ev.stop_propagation()
                         >
                             <button
-                                class=move || {
-                                    if dark_mode.get() {
-                                        "w-full text-left px-3 py-1.5 hover:bg-gray-700 text-gray-200"
-                                    } else {
-                                        "w-full text-left px-3 py-1.5 hover:bg-blue-50 text-gray-700"
-                                    }
-                                }
+                                class="w-full text-left px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
                                 on:click=move |_| copy_cell_value(menu_row_idx, menu_col_idx)
                             >
                                 "Copy Cell Value"
                             </button>
                             <button
-                                class=move || {
-                                    if dark_mode.get() {
-                                        "w-full text-left px-3 py-1.5 hover:bg-gray-700 text-gray-200"
-                                    } else {
-                                        "w-full text-left px-3 py-1.5 hover:bg-blue-50 text-gray-700"
-                                    }
-                                }
+                                class="w-full text-left px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
                                 on:click=move |_| copy_row_csv(menu_row_idx)
                             >
                                 "Copy Row as CSV"
@@ -460,32 +374,21 @@ pub fn DataTable(
                                 view! {
                                     <div class="border-t border-gray-600 dark:border-gray-600"></div>
                                     <button
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "w-full text-left px-3 py-1.5 hover:bg-gray-700 text-gray-200"
-                                            } else {
-                                                "w-full text-left px-3 py-1.5 hover:bg-blue-50 text-gray-700"
-                                            }
-                                        }
+                                        class="w-full text-left px-3 py-1.5 hover:bg-blue-50 dark:hover:bg-gray-700 text-gray-700 dark:text-gray-200"
                                         on:click=move |_| set_cell_null(menu_row_idx, menu_col_idx)
                                     >
                                         "Set to NULL"
                                     </button>
                                     <button
-                                        class=move || {
-                                            if dark_mode.get() {
-                                                "w-full text-left px-3 py-1.5 hover:bg-red-900 text-red-400"
-                                            } else {
-                                                "w-full text-left px-3 py-1.5 hover:bg-red-50 text-red-600"
-                                            }
-                                        }
+                                        class="w-full text-left px-3 py-1.5 hover:bg-red-50 dark:hover:bg-red-900 text-red-600 dark:text-red-400"
                                         on:click=move |_| delete_row_action(menu_row_idx)
                                     >
                                         "Delete Row"
                                     </button>
                                 }.into_any()
                             } else {
-                                view! {}.into_any()
+                                let _: () = view! {};
+                                ().into_any()
                             }}
                         </div>
                         <div
@@ -498,7 +401,8 @@ pub fn DataTable(
                         ></div>
                     }.into_any()
                 } else {
-                    view! {}.into_any()
+                    let _: () = view! {};
+                    ().into_any()
                 }
             }}
         </div>

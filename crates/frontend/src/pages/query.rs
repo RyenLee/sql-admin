@@ -9,8 +9,8 @@ use crate::utils::sql_formatter::format_sql;
 use leptos::html;
 use leptos::prelude::*;
 use serde_json::Value;
-use sql_admin_shared::{
-    Connection, EditRowRequest, ExecuteQueryRequest, QueryResult, SaveQueryHistoryRequest,
+use sql_admin_api_types::{
+    EditRowRequest, ExecuteQueryRequest, QueryResult, SaveQueryHistoryRequest, SchemaInfo,
 };
 use wasm_bindgen_futures::spawn_local;
 
@@ -26,21 +26,33 @@ use leptos::web_sys::Blob;
 
 #[cfg(target_arch = "wasm32")]
 fn download_file(filename: &str, _mime_type: &str, content: &str) {
-    let window = leptos::web_sys::window().unwrap();
-    let document = window.document().unwrap();
-    let blob = Blob::new_with_str_sequence(&Array::from_iter(std::iter::once(JsValue::from_str(
-        content,
-    ))))
-    .unwrap();
-    let url = leptos::web_sys::Url::create_object_url_with_blob(&blob).unwrap();
-    let a = document.create_element("a").unwrap();
-    a.set_attribute("href", &url).unwrap();
-    a.set_attribute("download", filename).unwrap();
-    a.set_attribute("style", "display: none").unwrap();
-    document.body().unwrap().append_child(&a).unwrap();
-    a.dyn_ref::<leptos::web_sys::HtmlElement>().unwrap().click();
-    document.body().unwrap().remove_child(&a).unwrap();
-    leptos::web_sys::Url::revoke_object_url(&url).unwrap();
+    let Some(window) = leptos::web_sys::window() else {
+        return;
+    };
+    let Some(document) = window.document() else {
+        return;
+    };
+    let Ok(blob) = Blob::new_with_str_sequence(&Array::from_iter(std::iter::once(
+        JsValue::from_str(content),
+    ))) else {
+        return;
+    };
+    let Ok(url) = leptos::web_sys::Url::create_object_url_with_blob(&blob) else {
+        return;
+    };
+    let Ok(a) = document.create_element("a") else {
+        return;
+    };
+    let _ = a.set_attribute("href", &url);
+    let _ = a.set_attribute("download", filename);
+    let _ = a.set_attribute("style", "display: none");
+    let Some(body) = document.body() else { return };
+    let _ = body.append_child(&a);
+    if let Some(el) = a.dyn_ref::<leptos::web_sys::HtmlElement>() {
+        el.click();
+    }
+    let _ = body.remove_child(&a);
+    let _ = leptos::web_sys::Url::revoke_object_url(&url);
 }
 
 #[cfg(not(target_arch = "wasm32"))]
@@ -49,9 +61,10 @@ fn download_file(_filename: &str, _mime_type: &str, _content: &str) {}
 #[component]
 pub fn QueryEditor() -> impl IntoView {
     let app_state = use_app_state();
-    let dark_mode = app_state.dark_mode;
-    let (connections, set_connections) = signal(Vec::<Connection>::new());
+    let connections = app_state.connections;
     let (selected_connection_id, set_selected_connection_id) = signal(None::<String>);
+    let (schema, set_schema) = signal(None::<SchemaInfo>);
+    let (selected_table, set_selected_table) = signal(None::<String>);
     let (query, set_query) = signal("SELECT * FROM sqlite_master LIMIT 10;".to_string());
     let (result, set_result) = signal(None::<QueryResult>);
     let (is_loading, set_is_loading) = signal(false);
@@ -62,10 +75,10 @@ pub fn QueryEditor() -> impl IntoView {
     let (status_msg, set_status_msg) = signal(None::<(String, bool)>);
     let page_size: i64 = 100;
 
-    let mounted = RwSignal::new(false);
+    let mounted = StoredValue::new(false);
     Effect::new(move |_| {
-        if !mounted.get() {
-            mounted.set(true);
+        if !mounted.get_value() {
+            mounted.set_value(true);
 
             app_state.tab_manager.update(|tm| {
                 let tab = Tab {
@@ -77,10 +90,20 @@ pub fn QueryEditor() -> impl IntoView {
                 };
                 tm.ensure_tab(tab);
             });
+        }
+    });
 
+    // Load schema when connection changes
+    Effect::new(move |_| {
+        let conn_id = selected_connection_id.get();
+        set_schema.set(None);
+        set_selected_table.set(None);
+        if let Some(id) = conn_id {
+            let set_schema = set_schema;
             spawn_local(async move {
-                if let Ok(conns) = client::list_connections().await {
-                    set_connections.set(conns);
+                match client::get_schema(id).await {
+                    Ok(s) => set_schema.set(Some(s)),
+                    Err(e) => leptos::logging::error!("Failed to load schema: {}", e),
                 }
             });
         }
@@ -95,14 +118,19 @@ pub fn QueryEditor() -> impl IntoView {
             .map(|c| c.name.clone())
             .unwrap_or_default();
 
-        if conn_id_opt.is_none() || query_text.is_empty() {
+        let Some(conn_id) = conn_id_opt else {
+            set_error_msg.set(Some(
+                "Please select a connection and enter a query".to_string(),
+            ));
+            return;
+        };
+        if query_text.is_empty() {
             set_error_msg.set(Some(
                 "Please select a connection and enter a query".to_string(),
             ));
             return;
         }
 
-        let conn_id = conn_id_opt.unwrap();
         let conn_id_1 = conn_id.clone();
         let conn_id_2 = conn_id.clone();
         let conn_id_3 = conn_id.clone();
@@ -183,15 +211,13 @@ pub fn QueryEditor() -> impl IntoView {
     };
 
     let load_page = move |page: i64| {
-        let conn_id = selected_connection_id.get();
-        if conn_id.is_none() {
+        let Some(conn_id) = selected_connection_id.get() else {
             return;
-        }
+        };
         set_current_page.set(page);
         spawn_local(async move {
             if let Ok(data) =
-                client::get_table_data(conn_id.unwrap(), &query.get(), page_size, page * page_size)
-                    .await
+                client::get_table_data(conn_id, &query.get(), page_size, page * page_size).await
             {
                 set_result.set(Some(data));
             }
@@ -203,11 +229,9 @@ pub fn QueryEditor() -> impl IntoView {
     };
 
     let export_csv = move |_| {
-        let current_result = result.get();
-        if current_result.is_none() {
+        let Some(qr) = result.get() else {
             return;
-        }
-        let qr = current_result.as_ref().unwrap();
+        };
         let mut csv = String::new();
         csv.push_str(&qr.columns.join(","));
         csv.push('\n');
@@ -227,11 +251,9 @@ pub fn QueryEditor() -> impl IntoView {
     };
 
     let export_json = move |_| {
-        let current_result = result.get();
-        if current_result.is_none() {
+        let Some(qr) = result.get() else {
             return;
-        }
-        let qr = current_result.as_ref().unwrap();
+        };
         let json_rows: Vec<serde_json::Value> = qr
             .rows
             .iter()
@@ -248,12 +270,24 @@ pub fn QueryEditor() -> impl IntoView {
     };
 
     let handle_cell_edit = move |(row_idx, col_idx, new_val): (usize, usize, String)| {
-        let conn_id = selected_connection_id.get();
-        let current_result = result.get();
+        let Some(conn_id) = selected_connection_id.get() else {
+            set_status_msg.set(Some((
+                "Please set table name and primary key for editing".to_string(),
+                false,
+            )));
+            return;
+        };
+        let Some(query_result) = result.get() else {
+            set_status_msg.set(Some((
+                "Please set table name and primary key for editing".to_string(),
+                false,
+            )));
+            return;
+        };
         let current_table = table_name.get();
         let current_pk = pk_column.get();
 
-        if conn_id.is_none() || current_result.is_none() || current_table.is_empty() {
+        if current_table.is_empty() {
             set_status_msg.set(Some((
                 "Please set table name and primary key for editing".to_string(),
                 false,
@@ -261,19 +295,17 @@ pub fn QueryEditor() -> impl IntoView {
             return;
         }
 
-        let query_result = current_result.as_ref().unwrap();
         let columns = &query_result.columns;
 
-        let pk_idx = columns.iter().position(|c| c == &current_pk);
-        if pk_idx.is_none() {
+        let Some(pk_idx) = columns.iter().position(|c| c == &current_pk) else {
             set_status_msg.set(Some((
                 format!("Primary key column '{}' not found in result", current_pk),
                 false,
             )));
             return;
-        }
+        };
 
-        let pk_value = query_result.rows[row_idx][pk_idx.unwrap()].clone();
+        let pk_value = query_result.rows[row_idx][pk_idx].clone();
         let col_name = columns[col_idx].clone();
         let new_value = if new_val.is_empty() || new_val == "NULL" {
             None
@@ -282,6 +314,7 @@ pub fn QueryEditor() -> impl IntoView {
         };
 
         let req = EditRowRequest {
+            connection_id: conn_id.clone(),
             table_name: current_table.clone(),
             primary_key_column: current_pk.clone(),
             primary_key_value: pk_value,
@@ -290,19 +323,20 @@ pub fn QueryEditor() -> impl IntoView {
         };
 
         spawn_local(async move {
-            match client::edit_row(conn_id.unwrap(), req).await {
+            match client::edit_row(conn_id.clone(), req).await {
                 Ok(_) => {
                     set_status_msg.set(Some(("Cell updated successfully".to_string(), true)));
                     set_result.update(|r| {
-                        if let Some(qr) = r {
-                            if row_idx < qr.rows.len() && col_idx < qr.rows[0].len() {
-                                let val = if new_val.is_empty() || new_val == "NULL" {
-                                    Value::Null
-                                } else {
-                                    Value::String(new_val.clone())
-                                };
-                                qr.rows[row_idx][col_idx] = val;
-                            }
+                        if let Some(qr) = r
+                            && row_idx < qr.rows.len()
+                            && col_idx < qr.rows[0].len()
+                        {
+                            let val = if new_val.is_empty() || new_val == "NULL" {
+                                Value::Null
+                            } else {
+                                Value::String(new_val.clone())
+                            };
+                            qr.rows[row_idx][col_idx] = val;
                         }
                     });
                 }
@@ -317,62 +351,66 @@ pub fn QueryEditor() -> impl IntoView {
 
     #[cfg(target_arch = "wasm32")]
     let handle_import_file = move |ev: leptos::ev::Event| {
-        let input = ev
+        let Some(input) = ev
             .target()
-            .and_then(|t| t.dyn_into::<leptos::web_sys::HtmlInputElement>().ok());
-        if let Some(input) = input {
-            let files = input.files();
-            if let Some(file_list) = files {
-                if let Some(file) = file_list.item(0) {
-                    let conn_id = selected_connection_id.get();
-                    if conn_id.is_none() {
-                        set_status_msg.set(Some((
-                            "Please select a connection first".to_string(),
-                            false,
-                        )));
-                        return;
-                    }
-                    let set_status = set_status_msg;
-                    let set_load = set_is_loading;
-                    set_load.set(true);
-                    spawn_local(async move {
-                        let text_promise = file.text();
-                        let js_value = wasm_bindgen_futures::JsFuture::from(text_promise)
-                            .await
-                            .unwrap();
-                        let content = js_value.as_string().unwrap_or_default();
+            .and_then(|t| t.dyn_into::<leptos::web_sys::HtmlInputElement>().ok())
+        else {
+            return;
+        };
+        let Some(file_list) = input.files() else {
+            return;
+        };
+        let Some(file) = file_list.item(0) else {
+            return;
+        };
 
-                        let req = sql_admin_shared::ImportSqlRequest {
-                            sql_content: content.clone(),
-                        };
+        let Some(conn_id) = selected_connection_id.get() else {
+            set_status_msg.set(Some((
+                "Please select a connection first".to_string(),
+                false,
+            )));
+            return;
+        };
+        let set_status = set_status_msg;
+        let set_load = set_is_loading;
+        set_load.set(true);
+        spawn_local(async move {
+            let text_promise = file.text();
+            let Ok(js_value) = wasm_bindgen_futures::JsFuture::from(text_promise).await else {
+                set_load.set(false);
+                return;
+            };
+            let content = js_value.as_string().unwrap_or_default();
 
-                        match client::import_sql(conn_id.unwrap(), req).await {
-                            Ok(import_result) => {
-                                let msg = if import_result.errors.is_empty() {
-                                    format!(
-                                        "Import completed: {} statements executed in {}ms",
-                                        import_result.statements_executed,
-                                        import_result.execution_time_ms.unwrap_or(0)
-                                    )
-                                } else {
-                                    format!(
-                                        "Import: {} succeeded, {} failed in {}ms",
-                                        import_result.statements_executed,
-                                        import_result.errors.len(),
-                                        import_result.execution_time_ms.unwrap_or(0)
-                                    )
-                                };
-                                set_status.set(Some((msg, import_result.errors.is_empty())));
-                            }
-                            Err(e) => {
-                                set_status.set(Some((format!("Import failed: {}", e), false)));
-                            }
-                        }
-                        set_load.set(false);
-                    });
+            let req = sql_admin_api_types::ImportSqlRequest {
+                connection_id: conn_id.clone(),
+                sql_content: content.clone(),
+            };
+
+            match client::import_sql(conn_id, req).await {
+                Ok(import_result) => {
+                    let msg = if import_result.errors.is_empty() {
+                        format!(
+                            "Import completed: {} statements executed in {}ms",
+                            import_result.statements_executed,
+                            import_result.execution_time_ms.unwrap_or(0)
+                        )
+                    } else {
+                        format!(
+                            "Import: {} succeeded, {} failed in {}ms",
+                            import_result.statements_executed,
+                            import_result.errors.len(),
+                            import_result.execution_time_ms.unwrap_or(0)
+                        )
+                    };
+                    set_status.set(Some((msg, import_result.errors.is_empty())));
+                }
+                Err(e) => {
+                    set_status.set(Some((format!("Import failed: {}", e), false)));
                 }
             }
-        }
+            set_load.set(false);
+        });
     };
 
     #[cfg(not(target_arch = "wasm32"))]
@@ -381,41 +419,58 @@ pub fn QueryEditor() -> impl IntoView {
     view! {
         <div class="h-full flex gap-4">
             <div class="flex-1 flex flex-col min-w-0">
-                <div class=move || {
-                    if dark_mode.get() {
-                        "bg-gray-800 rounded-lg shadow mb-4 flex-shrink-0"
-                    } else {
-                        "bg-white rounded-lg shadow mb-4 flex-shrink-0"
-                    }
-                }>
-                    <div class=move || {
-                        if dark_mode.get() {
-                            "p-3 border-b border-gray-700 flex items-center gap-4"
-                        } else {
-                            "p-3 border-b flex items-center gap-4"
-                        }
-                    }>
+                <div class="bg-white dark:bg-gray-800 rounded-lg shadow mb-4 flex-shrink-0">
+                    <div class="p-3 border-b dark:border-gray-700 flex items-center gap-4">
                         <div class="flex-1">
                             <select
-                                class=move || {
-                                    if dark_mode.get() {
-                                        "w-full px-3 py-2 bg-gray-700 border border-gray-600 text-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    } else {
-                                        "w-full px-3 py-2 border rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
-                                    }
-                                }
+                                class="w-full px-3 py-2 border dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
                                 on:change=move |ev| {
                                     let val = event_target_value(&ev);
-                                    set_selected_connection_id.set(Some(val));
+                                    if val.is_empty() {
+                                        set_selected_connection_id.set(None);
+                                    } else {
+                                        set_selected_connection_id.set(Some(val));
+                                    }
                                 }
+                                prop:value=move || selected_connection_id.get().unwrap_or_default()
                             >
                                 <option value="">"Select Connection"</option>
                                 {move || {
-                                    connections.get().into_iter().map(|conn| {
+                                    connections.get().into_iter()
+                                        .filter(|conn| conn.database_type != sql_admin_api_types::DatabaseType::Redb)
+                                        .map(|conn| {
                                         view! {
                                             <option value=conn.id.clone()>{conn.name}</option>
                                         }
                                     }).collect_view()
+                                }}
+                            </select>
+                        </div>
+                        <div class="flex-1">
+                            <select
+                                class="w-full px-3 py-2 border dark:border-gray-600 dark:bg-gray-700 dark:text-gray-200 rounded-md text-sm focus:outline-none focus:ring-2 focus:ring-blue-500"
+                                disabled=move || schema.get().is_none()
+                                on:change=move |ev| {
+                                    let val = event_target_value(&ev);
+                                    if val.is_empty() {
+                                        set_selected_table.set(None);
+                                    } else {
+                                        set_selected_table.set(Some(val.clone()));
+                                        set_query.set(format!("SELECT * FROM {} LIMIT 100;", val));
+                                    }
+                                }
+                                prop:value=move || selected_table.get().unwrap_or_default()
+                            >
+                                <option value="">"Select Table"</option>
+                                {move || {
+                                    schema.get().map(|s| {
+                                        s.tables.into_iter().map(|t| {
+                                            let name = t.name.clone();
+                                            view! {
+                                                <option value=t.name>{name}</option>
+                                            }
+                                        }).collect_view()
+                                    }).unwrap_or_default()
                                 }}
                             </select>
                         </div>
@@ -431,7 +486,7 @@ pub fn QueryEditor() -> impl IntoView {
                             disabled=is_loading
                             on:click=move |_| {
                                 if let Some(ref el) = file_input_ref.get() {
-                                    let _ = el.click();
+                                    el.click();
                                 }
                             }
                         >
@@ -541,7 +596,8 @@ pub fn QueryEditor() -> impl IntoView {
                             </div>
                         }.into_any()
                     } else {
-                        view! {}.into_any()
+                        let _: () = view! {};
+                        ().into_any()
                     }
                 }}
 
@@ -553,7 +609,8 @@ pub fn QueryEditor() -> impl IntoView {
                             </div>
                         }.into_any()
                     } else {
-                        view! {}.into_any()
+                        let _: () = view! {};
+                        ().into_any()
                     }
                 }}
 
@@ -566,20 +623,8 @@ pub fn QueryEditor() -> impl IntoView {
                     let rows = query_result.rows.clone();
 
                     view! {
-                        <div class=move || {
-                            if dark_mode.get() {
-                                "bg-gray-800 rounded-lg shadow flex-1 flex flex-col min-h-0"
-                            } else {
-                                "bg-white rounded-lg shadow flex-1 flex flex-col min-h-0"
-                            }
-                        }>
-                            <div class=move || {
-                                if dark_mode.get() {
-                                    "p-3 border-b border-gray-700 flex justify-between items-center flex-shrink-0"
-                                } else {
-                                    "p-3 border-b flex justify-between items-center flex-shrink-0"
-                                }
-                            }>
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow flex-1 flex flex-col min-h-0">
+                            <div class="p-3 border-b dark:border-gray-700 flex justify-between items-center flex-shrink-0">
                                 <div class="flex items-center gap-4">
                                     <h3 class="font-semibold text-sm">"Results"</h3>
                                     <div class="flex items-center gap-2 text-xs">
@@ -607,7 +652,8 @@ pub fn QueryEditor() -> impl IntoView {
                                     {if !exec_time.is_empty() {
                                         view! { <span class="text-green-600">{exec_time}</span> }.into_any()
                                     } else {
-                                        view! {}.into_any()
+                                        let _: () = view! {};
+                                        ().into_any()
                                     }}
                                     <span class="text-gray-300">"|"</span>
                                     <button
@@ -634,13 +680,7 @@ pub fn QueryEditor() -> impl IntoView {
 
                             {if row_count as i64 > page_size {
                                 view! {
-                                    <div class=move || {
-                                        if dark_mode.get() {
-                                            "p-2 border-t border-gray-700 flex items-center justify-center gap-2 flex-shrink-0"
-                                        } else {
-                                            "p-2 border-t flex items-center justify-center gap-2 flex-shrink-0"
-                                        }
-                                    }>
+                                    <div class="p-2 border-t dark:border-gray-700 flex items-center justify-center gap-2 flex-shrink-0">
                                         <button
                                             class="px-3 py-1 text-sm rounded border hover:bg-gray-100 disabled:opacity-50"
                                             disabled=page == 0
@@ -661,19 +701,14 @@ pub fn QueryEditor() -> impl IntoView {
                                     </div>
                                 }.into_any()
                             } else {
-                                view! {}.into_any()
+                                let _: () = view! {};
+                                ().into_any()
                             }}
                         </div>
                     }.into_any()
                 } else {
                     view! {
-                        <div class=move || {
-                            if dark_mode.get() {
-                                "bg-gray-800 rounded-lg shadow flex-1 flex items-center justify-center text-gray-500"
-                            } else {
-                                "bg-white rounded-lg shadow flex-1 flex items-center justify-center text-gray-400"
-                            }
-                        }>
+                        <div class="bg-white dark:bg-gray-800 rounded-lg shadow flex-1 flex items-center justify-center text-gray-400 dark:text-gray-500">
                             "Execute a query to see results"
                         </div>
                     }.into_any()
