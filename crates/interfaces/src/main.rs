@@ -62,11 +62,20 @@ async fn main() -> anyhow::Result<()> {
                 service
             }
             Err(e) => {
+                if config.environment.is_production() {
+                    tracing::error!(
+                        module = "main",
+                        event = "encryption_missing_key_production",
+                        error = %e,
+                        "ENCRYPTION_KEY is required in production environment"
+                    );
+                    return Err(anyhow::anyhow!("ENCRYPTION_KEY environment variable is required in production"));
+                }
                 tracing::warn!(
                     module = "main",
                     event = "encryption_fallback",
                     error = %e,
-                    "ENCRYPTION_KEY not set, using default key (for development only)"
+                    "ENCRYPTION_KEY not set, using default key (development only)"
                 );
                 AesGcmEncryptionService::with_default_key()
             }
