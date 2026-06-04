@@ -217,10 +217,22 @@ pub struct TableDef {
     pub row_count: Option<i64>,
 }
 
+#[derive(Clone, Debug, Serialize, Deserialize, Default)]
+#[serde(rename_all = "snake_case")]
+pub enum TransactionMode {
+    /// Roll back all statements if any fails
+    AllOrNothing,
+    /// Continue executing on error, collect errors
+    #[default]
+    ContinueOnError,
+}
+
 #[derive(Clone, Debug, Serialize, Deserialize)]
 pub struct ImportSqlRequest {
     pub connection_id: String,
     pub sql_content: String,
+    #[serde(default)]
+    pub transaction_mode: TransactionMode,
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]

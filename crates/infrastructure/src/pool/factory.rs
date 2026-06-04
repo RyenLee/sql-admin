@@ -189,11 +189,11 @@ impl RedbExecutor for CachedDomainPoolFactory {
     async fn list_redb_tables(
         &self,
         connection_id: &str,
-    ) -> Result<Vec<(String, u64)>, InfrastructureError> {
+    ) -> Result<Vec<(String, u64, u64)>, InfrastructureError> {
         let db = self.get_redb_db(connection_id).await?;
 
         let result = tokio::task::spawn_blocking(
-            move || -> Result<Vec<(String, u64)>, InfrastructureError> {
+            move || -> Result<Vec<(String, u64, u64)>, InfrastructureError> {
                 let read_txn = db.begin_read().map_err(|e| {
                     InfrastructureError::DatabaseError(format!("Redb begin read failed: {}", e))
                 })?;
@@ -205,8 +205,8 @@ impl RedbExecutor for CachedDomainPoolFactory {
                 let mut tables = Vec::new();
                 for handle in table_list {
                     let table_name = handle.name().to_string();
-                    let key_count = redb_try_key_count(&read_txn, &table_name);
-                    tables.push((table_name, key_count));
+                    let (key_count, stored_bytes) = redb_try_table_stats(&read_txn, &table_name);
+                    tables.push((table_name, key_count, stored_bytes));
                 }
 
                 Ok(tables)
@@ -280,10 +280,7 @@ impl RedbExecutor for CachedDomainPoolFactory {
                     })?;
 
                 table_def
-                    .insert(
-                        &*Box::leak(key_str.clone().into_boxed_str()),
-                        &*Box::leak(val_str.clone().into_boxed_str()),
-                    )
+                    .insert(key_str.as_str(), val_str.as_str())
                     .map_err(|e| {
                         InfrastructureError::DatabaseError(format!("Redb insert failed: {}", e))
                     })?;
@@ -387,18 +384,21 @@ fn redb_detect_table_types(
 
 /// Try to open a redb table and get its key count.
 /// First detects the actual types, then opens with the correct type.
-fn redb_try_key_count(read_txn: &redb::ReadTransaction, table_name: &str) -> u64 {
-    // Try untyped first for len()
+fn redb_try_table_stats(read_txn: &redb::ReadTransaction, table_name: &str) -> (u64, u64) {
     if let Ok(handles) = read_txn.list_tables() {
         for handle in handles {
             if handle.name() == table_name {
                 if let Ok(untyped) = read_txn.open_untyped_table(handle) {
-                    return untyped.len().unwrap_or(0);
+                    let key_count = untyped.len().unwrap_or(0);
+                    let stored_bytes = untyped.stats()
+                        .map(|s| s.stored_bytes())
+                        .unwrap_or(0);
+                    return (key_count, stored_bytes);
                 }
             }
         }
     }
-    0
+    (0, 0)
 }
 
 /// Try to query a redb table by detecting its actual types first, then opening with the correct type.

@@ -54,6 +54,8 @@ impl QueryHandler {
 
         let event = DomainEvent::QueryExecuted {
             connection_id: cmd.connection_id.clone(),
+            connection_name: String::new(), // Will be filled by consumer or left empty
+            query_text: cmd.query.clone(),
             query_hash,
             execution_time_ms: result.execution_time_ms.unwrap_or(0),
             success: true,
@@ -81,14 +83,28 @@ impl QueryHandler {
             )));
         }
 
+        if cmd.limit < 0 {
+            return Err(ApplicationError::Validation(
+                "Limit must be non-negative".to_string(),
+            ));
+        }
+        if cmd.offset < 0 {
+            return Err(ApplicationError::Validation(
+                "Offset must be non-negative".to_string(),
+            ));
+        }
+
+        // Cap limit to prevent excessive memory usage
+        let limit = if cmd.limit == 0 { 100 } else { cmd.limit.min(10000) };
+
         let sql = match db_type {
             DatabaseType::Mysql => format!(
                 "SELECT * FROM `{}` LIMIT {} OFFSET {}",
-                cmd.table, cmd.limit, cmd.offset
+                cmd.table, limit, cmd.offset
             ),
             _ => format!(
                 "SELECT * FROM \"{}\" LIMIT {} OFFSET {}",
-                cmd.table, cmd.limit, cmd.offset
+                cmd.table, limit, cmd.offset
             ),
         };
 
@@ -98,6 +114,11 @@ impl QueryHandler {
     pub async fn get_schema(&self, connection_id: &str) -> Result<Vec<TableInfo>, ApplicationError> {
         let executor = self.pool_service.get_executor(connection_id).await?;
         executor.get_schema().await.map_err(Into::into)
+    }
+
+    pub async fn get_schema_with_columns(&self, connection_id: &str) -> Result<Vec<TableDefinition>, ApplicationError> {
+        let executor = self.pool_service.get_executor(connection_id).await?;
+        executor.get_all_table_definitions().await.map_err(Into::into)
     }
 
     pub async fn get_table_definition(

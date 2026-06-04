@@ -14,10 +14,10 @@ pub async fn list_tables(
     let result = state.redb_handler.list_tables(&conn_id).await?;
     let tables: Vec<RedbTableSummary> = result
         .into_iter()
-        .map(|(name, key_count)| RedbTableSummary {
+        .map(|(name, key_count, stored_bytes)| RedbTableSummary {
             name,
             key_count,
-            total_value_bytes: 0,
+            total_value_bytes: stored_bytes,
         })
         .collect();
     Ok(Json(ApiResponse::ok(tables)))
@@ -32,9 +32,12 @@ pub async fn query_keys(
     let limit = req.limit;
     let offset = req.offset;
     let key_prefix = req.key_prefix.as_deref();
-    let result = state.redb_handler.query_keys(&conn_id, table, key_prefix, limit, offset).await?;
+    // Query limit+1 to accurately determine has_more (consistent with Desktop command)
+    let result = state.redb_handler.query_keys(&conn_id, table, key_prefix, limit + 1, offset).await?;
+    let has_more = result.len() > limit as usize;
     let keys: Vec<RedbKeyValue> = result
         .into_iter()
+        .take(limit as usize)
         .map(|(k, v)| RedbKeyValue {
             key: k.as_str().to_string(),
             value: v.as_json().clone(),
@@ -49,7 +52,6 @@ pub async fn query_keys(
         })
         .collect();
     let total = keys.len() as u64;
-    let has_more = total == limit;
     Ok(Json(ApiResponse::ok(RedbKeyList { keys, total, has_more })))
 }
 

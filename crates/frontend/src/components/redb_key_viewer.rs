@@ -1,6 +1,6 @@
 use crate::api::client;
 use leptos::prelude::*;
-use sql_admin_api_types::{RedbEditRequest, RedbKeyValue, RedbQueryRequest};
+use sql_admin_api_types::{RedbBatchDeleteRequest, RedbEditRequest, RedbKeyValue, RedbQueryRequest};
 use wasm_bindgen_futures::spawn_local;
 
 #[component]
@@ -13,6 +13,11 @@ pub fn RedbKeyViewer(connection_id: String, table_name: String) -> impl IntoView
     let (offset, set_offset) = signal(0u64);
     let (prefix, set_prefix) = signal(String::new());
     let (selected_key, set_selected_key) = signal(None::<RedbKeyValue>);
+    let (selected_keys, set_selected_keys) = signal(std::collections::HashSet::<String>::new());
+
+    // Store props in StoredValue for FnMut closures
+    let conn_id_stored = StoredValue::new(connection_id.clone());
+    let table_stored = StoredValue::new(table_name.clone());
 
     let load_keys = StoredValue::new({
         let connection_id = connection_id.clone();
@@ -36,6 +41,7 @@ pub fn RedbKeyViewer(connection_id: String, table_name: String) -> impl IntoView
                         set_total.set(result.total);
                         set_has_more.set(result.has_more);
                         set_error.set(None);
+                        set_selected_keys.set(std::collections::HashSet::new());
                     }
                     Err(e) => {
                         set_error.set(Some(e));
@@ -65,6 +71,52 @@ pub fn RedbKeyViewer(connection_id: String, table_name: String) -> impl IntoView
         load_keys.with_value(|f| f(prefix.get_untracked(), 0));
     };
 
+    let toggle_select_all = move |_| {
+        let current = selected_keys.get();
+        let all_keys: Vec<String> = keys.get().iter().map(|k| k.key.clone()).collect();
+        if current.len() == all_keys.len() && !all_keys.is_empty() {
+            set_selected_keys.set(std::collections::HashSet::new());
+        } else {
+            set_selected_keys.set(all_keys.into_iter().collect());
+        }
+    };
+
+    let toggle_key = move |key: String| {
+        set_selected_keys.update(|s| {
+            if s.contains(&key) {
+                s.remove(&key);
+            } else {
+                s.insert(key);
+            }
+        });
+    };
+
+    let batch_delete_selected = move |_| {
+        let sel: Vec<String> = selected_keys.get().into_iter().collect();
+        if sel.is_empty() {
+            return;
+        }
+        let conn_id = conn_id_stored.with_value(|v| v.clone());
+        let tbl = table_stored.with_value(|v| v.clone());
+        spawn_local(async move {
+            let req = RedbBatchDeleteRequest {
+                connection_id: conn_id.clone(),
+                table: tbl.clone(),
+                keys: sel,
+            };
+            match client::batch_delete_redb_keys(conn_id, req).await {
+                Ok(_) => {
+                    set_selected_keys.set(std::collections::HashSet::new());
+                    set_selected_key.set(None);
+                    load_keys.with_value(|f| f(prefix.get_untracked(), offset.get_untracked()));
+                }
+                Err(e) => {
+                    set_error.set(Some(e));
+                }
+            }
+        });
+    };
+
     view! {
         <div class="flex flex-col h-full">
             <div class="flex items-center gap-2 px-4 py-2 border-b border-gray-200 dark:border-gray-700">
@@ -87,6 +139,25 @@ pub fn RedbKeyViewer(connection_id: String, table_name: String) -> impl IntoView
                 >"Search"</button>
             </div>
 
+            {move || if !selected_keys.get().is_empty() {
+                view! {
+                    <div class="sticky top-0 bg-yellow-50 dark:bg-yellow-900 border-b border-yellow-700 dark:border-yellow-700 px-4 py-2 flex items-center gap-3 z-10">
+                        <span class="text-xs text-yellow-800 dark:text-yellow-200">
+                            {move || format!("{} key(s) selected", selected_keys.get().len())}
+                        </span>
+                        <button
+                            class="text-xs px-2 py-1 bg-red-500 text-white rounded hover:bg-red-600"
+                            on:click=batch_delete_selected
+                        >
+                            "Delete Selected"
+                        </button>
+                    </div>
+                }.into_any()
+            } else {
+                let _: () = view! {};
+                ().into_any()
+            }}
+
             <div class="flex-1 overflow-auto">
                 {move || {
                     if loading.get() {
@@ -106,6 +177,17 @@ pub fn RedbKeyViewer(connection_id: String, table_name: String) -> impl IntoView
                             <table class="w-full text-sm text-gray-800 dark:text-gray-200">
                                 <thead>
                                     <tr class="bg-gray-50 dark:bg-gray-700">
+                                        <th class="px-2 py-2 w-8">
+                                            <input
+                                                type="checkbox"
+                                                class="rounded dark:bg-gray-700"
+                                                on:change=toggle_select_all
+                                                checked=move || {
+                                                    let k = keys.get();
+                                                    !k.is_empty() && selected_keys.get().len() == k.len()
+                                                }
+                                            />
+                                        </th>
                                         <th class="px-4 py-2 text-left font-medium">"Key"</th>
                                         <th class="px-4 py-2 text-left font-medium">"Type"</th>
                                         <th class="px-4 py-2 text-left font-medium">"Value Preview"</th>
@@ -115,8 +197,10 @@ pub fn RedbKeyViewer(connection_id: String, table_name: String) -> impl IntoView
                                     <For each=move || keys.get() key=|kv| kv.key.clone() let(kv)>
                                         {
                                             let kv_for_click = kv.clone();
-                                            let kv_for_class = kv.clone();
+                                            let kv_for_class_key = kv.key.clone();
                                             let kv_for_type = kv.clone();
+                                            let kv_for_checkbox_checked = kv.key.clone();
+                                            let kv_for_checkbox_toggle = kv.key.clone();
                                             let key_display = kv.key.clone();
                                             let type_display = kv.value_type.clone();
                                             let value_preview = serde_json::to_string(&kv.value).unwrap_or_default().chars().take(80).collect::<String>();
@@ -126,13 +210,25 @@ pub fn RedbKeyViewer(connection_id: String, table_name: String) -> impl IntoView
                                                         let base = "cursor-pointer border-b ";
                                                         let border = "border-gray-100 dark:border-gray-700 ";
                                                         let hover = "hover:bg-gray-50 dark:hover:bg-gray-700";
-                                                        let selected = if selected_key.get().map(|s| s.key == kv_for_class.key).unwrap_or(false) {
+                                                        let selected = if selected_key.get().map(|s| s.key == kv_for_class_key).unwrap_or(false) {
                                                             "bg-blue-50 dark:bg-gray-700"
+                                                        } else if selected_keys.get().contains(&kv_for_class_key) {
+                                                            "bg-yellow-50 dark:bg-yellow-900"
                                                         } else { "" };
                                                         format!("{}{}{}{}", base, border, hover, selected)
                                                     }
                                                     on:click=move |_| set_selected_key.set(Some(kv_for_click.clone()))
                                                 >
+                                                    <td class="px-2 py-1.5" on:click=move |ev| ev.stop_propagation()>
+                                                        <input
+                                                            type="checkbox"
+                                                            class="rounded dark:bg-gray-700"
+                                                            checked=move || selected_keys.get().contains(&kv_for_checkbox_checked)
+                                                            on:change={
+                                                                move |_| toggle_key(kv_for_checkbox_toggle.clone())
+                                                            }
+                                                        />
+                                                    </td>
                                                     <td class="px-4 py-1.5 font-mono text-xs">{key_display}</td>
                                                     <td class="px-4 py-1.5">
                                                         <span class=move || {
@@ -192,19 +288,20 @@ pub fn RedbKeyViewer(connection_id: String, table_name: String) -> impl IntoView
                                     <button
                                         class="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700"
                                         on:click={
-                                            let conn_id = connection_id.clone();
-                                            let tbl = table_name.clone();
                                             let key = kv.key.clone();
                                             move |_| {
+                                                let conn_id = conn_id_stored.with_value(|v| v.clone());
+                                                let tbl = table_stored.with_value(|v| v.clone());
                                                 let req = RedbEditRequest {
-                                                    connection_id: conn_id.clone(),
-                                                    table: tbl.clone(),
+                                                    connection_id: conn_id,
+                                                    table: tbl,
                                                     key: key.clone(),
                                                     new_value: None,
                                                 };
                                                 spawn_local(async move {
                                                     if client::edit_redb_key(req).await.is_ok() {
                                                         set_selected_key.set(None);
+                                                        load_keys.with_value(|f| f(prefix.get_untracked(), offset.get_untracked()));
                                                     }
                                                 });
                                             }

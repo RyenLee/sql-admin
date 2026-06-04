@@ -3,15 +3,20 @@ name = "sql-admin-infrastructure"
 version = "1.1.0"
 edition = "2024"
 
+[features]
+default = []
+keyring = ["dep:keyring"]
+
 [dependencies]
 sql-admin-domain = { path = "../domain" }
 sqlx = { workspace = true }
 tokio = { workspace = true, features = ["sync"] }
 tracing = { workspace = true }
-aes-gcm = "0.10"
-base64 = "0.22"
-getrandom = "0.4"
+aes-gcm = "0.10.3"
+base64 = "0.22.1"
+getrandom = "0.4.2"
 redb = { workspace = true }
-async-trait = "0.1"
+async-trait = "0.1.89"
 chrono = { workspace = true }
 serde_json = { workspace = true }
+keyring = { version = "3", optional = true, features = ["windows-native"] }

@@ -20,6 +20,10 @@ pub struct AppConfig {
     pub log_level: String,
     pub log_dir: String,
     pub environment: Environment,
+    /// Path to frontend static files directory (e.g. `../frontend/dist`).
+    /// When set, Axum will serve these files and provide SPA fallback.
+    /// When empty/None, only API routes are served (dev mode with separate Trunk).
+    pub frontend_dist: Option<String>,
 }
 
 impl AppConfig {
@@ -42,12 +46,17 @@ impl AppConfig {
             ""
         };
 
+        let frontend_dist = env::var("FRONTEND_DIST")
+            .ok()
+            .filter(|s| !s.is_empty());
+
         Ok(Self {
             database_url: env::var("DATABASE_URL")?,
             server_addr: env::var("SERVER_ADDR").unwrap_or_else(|_| "0.0.0.0:3000".to_string()),
             log_level: env::var("LOG_LEVEL").unwrap_or_else(|_| default_log_level.to_string()),
             log_dir: env::var("LOG_DIR").unwrap_or_else(|_| default_log_dir.to_string()),
             environment,
+            frontend_dist,
         })
     }
 }

@@ -10,7 +10,8 @@ use leptos::html;
 use leptos::prelude::*;
 use serde_json::Value;
 use sql_admin_api_types::{
-    EditRowRequest, ExecuteQueryRequest, QueryResult, SaveQueryHistoryRequest, SchemaInfo,
+    DeleteRowRequest, EditRowRequest, ExecuteQueryRequest, InsertRowRequest, QueryResult,
+    SaveQueryHistoryRequest, SchemaInfo,
 };
 use wasm_bindgen_futures::spawn_local;
 
@@ -73,6 +74,8 @@ pub fn QueryEditor() -> impl IntoView {
     let (table_name, set_table_name) = signal(String::new());
     let (pk_column, set_pk_column) = signal("id".to_string());
     let (status_msg, set_status_msg) = signal(None::<(String, bool)>);
+    let (show_insert_form, set_show_insert_form) = signal(false);
+    let (insert_values, set_insert_values) = signal(Vec::<String>::new());
     let page_size: i64 = 100;
 
     let mounted = StoredValue::new(false);
@@ -347,6 +350,141 @@ pub fn QueryEditor() -> impl IntoView {
         });
     };
 
+    let handle_row_delete = move |row_idx: usize| {
+        let Some(conn_id) = selected_connection_id.get() else {
+            set_status_msg.set(Some((
+                "Please set table name and primary key for editing".to_string(),
+                false,
+            )));
+            return;
+        };
+        let Some(query_result) = result.get() else {
+            set_status_msg.set(Some((
+                "Please set table name and primary key for editing".to_string(),
+                false,
+            )));
+            return;
+        };
+        let current_table = table_name.get();
+        let current_pk = pk_column.get();
+
+        if current_table.is_empty() {
+            set_status_msg.set(Some((
+                "Please set table name and primary key for editing".to_string(),
+                false,
+            )));
+            return;
+        }
+
+        let columns = &query_result.columns;
+
+        let Some(pk_idx) = columns.iter().position(|c| c == &current_pk) else {
+            set_status_msg.set(Some((
+                format!("Primary key column '{}' not found in result", current_pk),
+                false,
+            )));
+            return;
+        };
+
+        let pk_value = query_result.rows[row_idx][pk_idx].clone();
+
+        let req = DeleteRowRequest {
+            connection_id: conn_id.clone(),
+            table_name: current_table.clone(),
+            primary_key_column: current_pk.clone(),
+            primary_key_value: pk_value,
+        };
+
+        spawn_local(async move {
+            match client::delete_row(conn_id.clone(), req).await {
+                Ok(qr) => {
+                    let rows_affected = qr.rows_affected.unwrap_or(0);
+                    set_status_msg.set(Some((
+                        format!("Row deleted ({} row(s) affected)", rows_affected),
+                        true,
+                    )));
+                    set_result.update(|r| {
+                        if let Some(qr) = r
+                            && row_idx < qr.rows.len()
+                        {
+                            qr.rows.remove(row_idx);
+                        }
+                    });
+                }
+                Err(e) => {
+                    set_status_msg.set(Some((format!("Delete failed: {}", e), false)));
+                }
+            }
+        });
+    };
+
+    let handle_insert_row = move |_| {
+        let Some(conn_id) = selected_connection_id.get() else {
+            set_status_msg.set(Some((
+                "Please select a connection and set table name first".to_string(),
+                false,
+            )));
+            return;
+        };
+        let Some(query_result) = result.get() else {
+            set_status_msg.set(Some((
+                "Please execute a query first to determine columns".to_string(),
+                false,
+            )));
+            return;
+        };
+        let current_table = table_name.get();
+        if current_table.is_empty() {
+            set_status_msg.set(Some((
+                "Please set table name for inserting".to_string(),
+                false,
+            )));
+            return;
+        }
+
+        let columns = query_result.columns.clone();
+        let values = insert_values.get();
+        let json_values: Vec<Value> = columns.iter().enumerate().map(|(i, _)| {
+            let v = values.get(i).cloned().unwrap_or_default();
+            if v.is_empty() || v.eq_ignore_ascii_case("null") {
+                Value::Null
+            } else if let Ok(n) = v.parse::<i64>() {
+                Value::Number(n.into())
+            } else if let Ok(f) = v.parse::<f64>() {
+                serde_json::Number::from_f64(f).map(Value::Number).unwrap_or(Value::String(v))
+            } else if v.eq_ignore_ascii_case("true") {
+                Value::Bool(true)
+            } else if v.eq_ignore_ascii_case("false") {
+                Value::Bool(false)
+            } else {
+                Value::String(v)
+            }
+        }).collect();
+
+        let req = InsertRowRequest {
+            connection_id: conn_id.clone(),
+            table_name: current_table.clone(),
+            columns,
+            values: json_values,
+        };
+
+        spawn_local(async move {
+            match client::insert_row(conn_id, req).await {
+                Ok(qr) => {
+                    let rows_affected = qr.rows_affected.unwrap_or(0);
+                    set_status_msg.set(Some((
+                        format!("Row inserted ({} row(s) affected)", rows_affected),
+                        true,
+                    )));
+                    set_show_insert_form.set(false);
+                }
+                Err(e) => {
+                    set_status_msg.set(Some((format!("Insert failed: {}", e), false)));
+                }
+            }
+        });
+    };
+
     let file_input_ref: NodeRef<html::Input> = NodeRef::new();
 
     #[cfg(target_arch = "wasm32")]
@@ -385,6 +523,7 @@ pub fn QueryEditor() -> impl IntoView {
             let req = sql_admin_api_types::ImportSqlRequest {
                 connection_id: conn_id.clone(),
                 sql_content: content.clone(),
+                transaction_mode: sql_admin_api_types::TransactionMode::default(),
             };
 
             match client::import_sql(conn_id, req).await {
@@ -646,6 +785,18 @@ pub fn QueryEditor() -> impl IntoView {
                                         />
                                         <span class="text-gray-300 text-xs">"(for editing)"</span>
                                     </div>
+                                    <button
+                                        class="px-2 py-1 text-xs rounded border border-green-300 bg-green-50 hover:bg-green-100 text-green-700 disabled:opacity-50"
+                                        disabled=move || table_name.get().is_empty()
+                                        on:click=move |_| {
+                                            if let Some(qr) = result.get() {
+                                                set_insert_values.set(vec![String::new(); qr.columns.len()]);
+                                                set_show_insert_form.set(true);
+                                            }
+                                        }
+                                    >
+                                        "+ Insert Row"
+                                    </button>
                                 </div>
                                 <div class="text-xs text-gray-500 flex items-center gap-3">
                                     <span>{row_count}" rows"</span>
@@ -676,7 +827,56 @@ pub fn QueryEditor() -> impl IntoView {
                                 rows=rows
                                 editable=true
                                 on_cell_edit=Callback::new(handle_cell_edit)
+                                on_row_delete=Callback::new(handle_row_delete)
                             />
+
+                            {move || if show_insert_form.get() {
+                                let qr = result.get();
+                                let cols = qr.map(|q| q.columns).unwrap_or_default();
+                                let current_vals = insert_values.get();
+                                view! {
+                                    <div class="border-t dark:border-gray-700 p-3 bg-green-50 dark:bg-green-900/20 flex-shrink-0">
+                                        <div class="flex items-center justify-between mb-2">
+                                            <span class="text-xs font-medium text-green-800 dark:text-green-300">"Insert New Row"</span>
+                                            <button
+                                                class="text-xs text-gray-500 hover:text-gray-700"
+                                                on:click=move |_| set_show_insert_form.set(false)
+                                            >"Cancel"</button>
+                                        </div>
+                                        <div class="flex flex-wrap gap-2">
+                                            {cols.into_iter().enumerate().map(|(i, col)| {
+                                                let val = current_vals.get(i).cloned().unwrap_or_default();
+                                                view! {
+                                                    <div class="flex items-center gap-1">
+                                                        <label class="text-[10px] text-gray-500 font-medium">{col.clone()}</label>
+                                                        <input
+                                                            type="text"
+                                                            class="w-24 px-2 py-1 border rounded text-xs focus:outline-none focus:ring-1 focus:ring-green-400"
+                                                            placeholder="NULL"
+                                                            prop:value=val
+                                                            on:input=move |ev| {
+                                                                set_insert_values.update(|v| {
+                                                                    while v.len() <= i { v.push(String::new()); }
+                                                                    v[i] = event_target_value(&ev);
+                                                                });
+                                                            }
+                                                        />
+                                                    </div>
+                                                }
+                                            }).collect_view()}
+                                        </div>
+                                        <div class="mt-2 flex justify-end">
+                                            <button
+                                                class="px-3 py-1 bg-green-600 text-white text-xs rounded hover:bg-green-700"
+                                                on:click=handle_insert_row
+                                            >"Insert"</button>
+                                        </div>
+                                    </div>
+                                }.into_any()
+                            } else {
+                                let _: () = view! {};
+                                ().into_any()
+                            }}
 
                             {if row_count as i64 > page_size {
                                 view! {

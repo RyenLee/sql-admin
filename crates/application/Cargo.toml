@@ -6,7 +6,7 @@ edition = "2024"
 [dependencies]
 sql-admin-domain = { path = "../domain" }
 sql-admin-api-types = { path = "../api-types" }
-async-trait = "0.1"
+async-trait = "0.1.89"
 serde = { workspace = true }
 serde_json = { workspace = true }
 tracing = { workspace = true }

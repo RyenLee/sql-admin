@@ -6,7 +6,7 @@ integrity = "none"
 ignore = ["../domain", "../infrastructure", "../interfaces", "../application"]
 
 [serve]
-port = 8080
+port = 1420
 open = false
 
 [[proxy]]

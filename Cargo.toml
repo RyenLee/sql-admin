@@ -1,6 +1,6 @@
 [workspace]
 resolver = "2"
-members = ["crates/api-types", "crates/frontend", "crates/shared", "crates/domain", "crates/infrastructure", "crates/application", "crates/interfaces"]
+members = ["crates/api-types", "crates/frontend", "crates/shared", "crates/domain", "crates/infrastructure", "crates/application", "crates/interfaces", "crates/desktop"]
 
 [workspace.package]
 version = "1.1.0"
@@ -43,6 +43,7 @@ leptos = { version = "0.8.19", features = ["csr"] }
 leptos_router = "0.8.13"
 gloo-net = "0.7.0"
 redb = "4.1.0"
+regex = "1.12.3"
 
 [profile.release]
 opt-level = "z"

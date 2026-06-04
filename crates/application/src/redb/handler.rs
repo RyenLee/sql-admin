@@ -32,7 +32,7 @@ impl RedbHandler {
     pub async fn list_tables(
         &self,
         connection_id: &str,
-    ) -> Result<Vec<(String, u64)>, ApplicationError> {
+    ) -> Result<Vec<(String, u64, u64)>, ApplicationError> {
         self.ensure_pool(connection_id).await?;
         let tables = self.redb_executor.list_redb_tables(connection_id).await?;
         Ok(tables)
@@ -78,6 +78,20 @@ impl RedbHandler {
             .await?;
 
         Ok(())
+    }
+
+    pub async fn delete_key(
+        &self,
+        connection_id: &str,
+        table_name: &str,
+        key: RedbKey,
+    ) -> Result<u64, ApplicationError> {
+        self.ensure_pool(connection_id).await?;
+        let count = self
+            .redb_executor
+            .batch_delete_redb_keys(connection_id, table_name, &[key.as_str().to_string()])
+            .await?;
+        Ok(count)
     }
 
     pub async fn batch_delete_keys(

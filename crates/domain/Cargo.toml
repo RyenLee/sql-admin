@@ -9,7 +9,7 @@ serde = { workspace = true, features = ["derive"] }
 serde_json = { workspace = true }
 chrono = { workspace = true }
 thiserror = { workspace = true }
-async-trait = "0.1"
+async-trait = "0.1.89"
 uuid = { workspace = true }
 tracing = { workspace = true }
-getrandom = "0.4"
+getrandom = "0.4.2"

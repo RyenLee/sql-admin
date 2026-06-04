@@ -3,11 +3,14 @@
   <head>
     <meta charset="utf-8" />
     <title>SQL Admin - Web-based SQL Management</title>
-    <link rel="stylesheet" href="/styles-dcac991a7bd9e152.css" integrity="sha384-wZuTMe7vgpoDHaVBCoSUQrOtuTQrfbRPMUPpqeHX4WVqxyppH4YEp8wl8N3jPNta"/>
+    <link rel="icon" href="public/favicon.ico" type="image/x-icon" />
+    <link rel="icon" href="public/favicon.png" type="image/png" />
+    <link rel="apple-touch-icon" href="public/logo-128.png" />
+    <link rel="stylesheet" href="/styles-151c96d092f7fd72.css" integrity="sha384-hKad+0hiU3wgCz7nlXCgfnu6Fp3ImYhJ9bxftGdxJ0RMywcwSMi6QxWDLFclBWbq"/>
     
 <script type="module">
-import init, * as bindings from '/sql-admin-frontend-c7468087dc341ca9.js';
-const wasm = await init({ module_or_path: '/sql-admin-frontend-c7468087dc341ca9_bg.wasm' });
+import init, * as bindings from '/sql-admin-frontend-1b8755d5cc688ac.js';
+const wasm = await init({ module_or_path: '/sql-admin-frontend-1b8755d5cc688ac_bg.wasm' });
 
 
 window.wasmBindings = bindings;
@@ -16,7 +19,7 @@ window.wasmBindings = bindings;
 dispatchEvent(new CustomEvent("TrunkApplicationStarted", {detail: {wasm}}));
 
 </script>
-  <link rel="modulepreload" href="/sql-admin-frontend-c7468087dc341ca9.js" crossorigin="anonymous" integrity="sha384-DoBNJeNb8MsyU6X2W58/wsgZr3uj0svVlegS8WWzx4ho5noHKi21ghm9REuaNjvu"><link rel="preload" href="/sql-admin-frontend-c7468087dc341ca9_bg.wasm" crossorigin="anonymous" integrity="sha384-hxp4UkUCekHeifRC4zZNEZlH6Ze8tsTXlwt1wJI25keY45Ku/O/pnRREMl70tCi3" as="fetch" type="application/wasm"></head>
+  <link rel="modulepreload" href="/sql-admin-frontend-1b8755d5cc688ac.js" crossorigin="anonymous" integrity="sha384-7ee8Bh8U7nG6JX62O3H5yLivFRILWLrNnul2xeJq2YGYZHcCMS+NcpF63x5ATDSv"><link rel="preload" href="/sql-admin-frontend-1b8755d5cc688ac_bg.wasm" crossorigin="anonymous" integrity="sha384-qyQb7KJ0OF+82ToVRn5Aww7Ak+MWN1QTJsBSQna5vmz/FH3lqX4q2m13bKlEcZfn" as="fetch" type="application/wasm"></head>
   <body><script>"use strict";
 
 (function () {

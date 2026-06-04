@@ -7,6 +7,7 @@ use sql_admin_api_types::{ApiResponse, ColumnInfo, SchemaInfo, TableDef, TableIn
 use crate::error::AppResult;
 use crate::state::AppState;
 
+#[allow(dead_code)]
 fn domain_table_info_to_dto(
     t: sql_admin_domain::shared::pool::TableInfo,
 ) -> TableInfo {
@@ -58,8 +59,30 @@ pub async fn get_schema(
     Path(conn_id): Path<String>,
 ) -> AppResult<Json<ApiResponse<SchemaInfo>>> {
     let tables = state.query_handler.get_schema(&conn_id).await?;
+
+    // Enrich each table with column info from get_table_definition
+    let mut enriched_tables = Vec::with_capacity(tables.len());
+    for t in tables {
+        let columns = match state.query_handler.get_table_definition(&conn_id, &t.name).await {
+            Ok(def) => def.columns.into_iter().map(|c| ColumnInfo {
+                name: c.name,
+                data_type: c.data_type,
+                not_null: !c.nullable,
+                default_value: None,
+                is_primary_key: c.is_primary_key,
+            }).collect(),
+            Err(_) => vec![], // Non-critical: skip columns if definition fetch fails
+        };
+
+        enriched_tables.push(TableInfo {
+            name: t.name,
+            row_count: None,
+            columns,
+        });
+    }
+
     let schema_info = SchemaInfo {
-        tables: tables.into_iter().map(domain_table_info_to_dto).collect(),
+        tables: enriched_tables,
         views: vec![],
         indexes: vec![],
         triggers: vec![],

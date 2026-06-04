@@ -6,6 +6,8 @@ use tracing;
 
 use super::factory::{DynPool, PoolFactory};
 
+const MAX_POOLS: usize = 50;
+
 pub struct CachedPoolManager<F: PoolFactory> {
     factory: F,
     pools: RwLock<HashMap<String, DynPool>>,
@@ -30,36 +32,60 @@ impl<F: PoolFactory> CachedPoolManager<F> {
         username: &str,
         password: &str,
     ) -> Result<DynPool, InfrastructureError> {
+        // Fast path: check read lock first
         {
-            let mut pools = self.pools.write().await;
+            let pools = self.pools.read().await;
             if let Some(pool) = pools.get(connection_id) {
                 return Ok(pool.clone());
             }
+        }
 
-            tracing::info!(
-                module = "pool",
-                event = "create_pool",
-                connection_id = %connection_id,
-                database_type = %database_type,
-                "Creating new connection pool"
-            );
+        // Slow path: create pool outside of lock, then insert
+        tracing::info!(
+            module = "pool",
+            event = "create_pool",
+            connection_id = %connection_id,
+            database_type = %database_type,
+            "Creating new connection pool"
+        );
 
-            let pool = self
-                .factory
-                .create_pool(database_type, host, port, database, username, password)
-                .await?;
+        let pool = self
+            .factory
+            .create_pool(database_type, host, port, database, username, password)
+            .await?;
+
+        {
+            let mut pools = self.pools.write().await;
+
+            // Double-check: another task may have inserted while we were creating
+            if let Some(existing) = pools.get(connection_id) {
+                return Ok(existing.clone());
+            }
+
+            // Evict oldest entry if at capacity
+            if pools.len() >= MAX_POOLS {
+                if let Some(oldest_key) = pools.keys().next().cloned() {
+                    tracing::warn!(
+                        module = "pool",
+                        event = "pool_evicted",
+                        evicted_connection_id = %oldest_key,
+                        "Connection pool cache at capacity, evicting oldest entry"
+                    );
+                    pools.remove(&oldest_key);
+                }
+            }
 
             pools.insert(connection_id.to_string(), pool.clone());
-
-            tracing::info!(
-                module = "pool",
-                event = "pool_created",
-                connection_id = %connection_id,
-                "Connection pool created and cached"
-            );
-
-            Ok(pool)
         }
+
+        tracing::info!(
+            module = "pool",
+            event = "pool_created",
+            connection_id = %connection_id,
+            "Connection pool created and cached"
+        );
+
+        Ok(pool)
     }
 
     pub async fn invalidate(&self, connection_id: &str) {
@@ -81,5 +107,9 @@ impl<F: PoolFactory> CachedPoolManager<F> {
                 connection_id
             ))
         })
+    }
+
+    pub async fn pool_count(&self) -> usize {
+        self.pools.read().await.len()
     }
 }

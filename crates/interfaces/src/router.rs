@@ -2,14 +2,17 @@ use axum::{
     Router, middleware as axum_middleware,
     routing::{delete, get, post},
 };
-use tower_http::{cors::CorsLayer, trace::TraceLayer};
+use tower_http::{cors::CorsLayer, services::ServeDir, trace::TraceLayer};
 
 use crate::handlers;
 use crate::middleware;
 use crate::state::AppState;
 
-pub fn create_router(app_state: AppState) -> Router {
-    Router::new()
+pub fn create_router_with_frontend(
+    app_state: AppState,
+    frontend_dist: Option<String>,
+) -> Router {
+    let api_routes = Router::new()
         .route(
             "/api/connections",
             post(handlers::connections::create_connection)
@@ -88,7 +91,39 @@ pub fn create_router(app_state: AppState) -> Router {
         .layer(axum_middleware::from_fn(middleware::logging))
         .layer(TraceLayer::new_for_http())
         .layer(CorsLayer::permissive())
-        .with_state(app_state)
+        .with_state(app_state);
+
+    // If frontend_dist is configured, serve static files and add SPA fallback
+    if let Some(dist_path) = frontend_dist {
+        let dist = std::path::Path::new(&dist_path);
+        if dist.exists() {
+            tracing::info!(
+                module = "router",
+                event = "frontend_static_enabled",
+                path = %dist_path,
+                "Serving frontend static files"
+            );
+            let index_html = dist.join("index.html");
+            Router::new()
+                .merge(api_routes)
+                .fallback_service(
+                    ServeDir::new(&dist_path)
+                        .fallback(axum::routing::get_service(
+                            tower_http::services::ServeFile::new(index_html),
+                        )),
+                )
+        } else {
+            tracing::warn!(
+                module = "router",
+                event = "frontend_dist_not_found",
+                path = %dist_path,
+                "FRONTEND_DIST directory not found, serving API only"
+            );
+            api_routes
+        }
+    } else {
+        api_routes
+    }
 }
 
 async fn health_check() -> &'static str {

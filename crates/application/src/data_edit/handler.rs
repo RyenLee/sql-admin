@@ -188,7 +188,8 @@ fn value_to_sql_literal(value: &serde_json::Value) -> String {
             }
         }
         serde_json::Value::String(s) => {
-            let escaped = s.replace('\'', "''");
+            // Escape single quotes (SQL standard) and backslashes (MySQL, PostgreSQL)
+            let escaped = s.replace('\\', "\\\\").replace('\'', "''");
             format!("'{}'", escaped)
         }
         serde_json::Value::Array(arr) => {
@@ -196,9 +197,13 @@ fn value_to_sql_literal(value: &serde_json::Value) -> String {
             items.join(", ")
         }
         serde_json::Value::Object(obj) => {
-            let json_str = serde_json::to_string(obj).unwrap_or_default();
-            let escaped = json_str.replace('\'', "''");
-            format!("'{}'", escaped)
+            match serde_json::to_string(obj) {
+                Ok(json_str) => {
+                    let escaped = json_str.replace('\\', "\\\\").replace('\'', "''");
+                    format!("'{}'", escaped)
+                }
+                Err(_) => "NULL".to_string(),
+            }
         }
     }
 }

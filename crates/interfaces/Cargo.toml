@@ -18,7 +18,7 @@ tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
 tracing-appender = { workspace = true }
 sqlx = { workspace = true }
-dotenv = "0.15"
+dotenv = "0.15.0"
 anyhow = { workspace = true }
 redb = { workspace = true }
 chrono = { workspace = true }

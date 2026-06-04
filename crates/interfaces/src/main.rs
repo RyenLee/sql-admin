@@ -57,7 +57,7 @@ async fn main() -> anyhow::Result<()> {
                 tracing::info!(
                     module = "main",
                     event = "encryption_initialized",
-                    "Using ENCRYPTION_KEY from environment"
+                    "Encryption service initialized from ENCRYPTION_KEY or keyring"
                 );
                 service
             }
@@ -77,6 +77,7 @@ async fn main() -> anyhow::Result<()> {
                     error = %e,
                     "ENCRYPTION_KEY not set, using default key (development only)"
                 );
+                #[allow(deprecated)]
                 AesGcmEncryptionService::with_default_key()
             }
         });
@@ -132,7 +133,7 @@ async fn main() -> anyhow::Result<()> {
         redb_handler,
     );
 
-    let router = router::create_router(app_state);
+    let router = router::create_router_with_frontend(app_state, config.frontend_dist.clone());
 
     // Create listener with SO_REUSEADDR to handle TIME_WAIT state on Windows
     let addr: std::net::SocketAddr = config.server_addr.parse()

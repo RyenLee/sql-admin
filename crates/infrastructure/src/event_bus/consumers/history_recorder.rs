@@ -3,7 +3,7 @@ use sql_admin_domain::history::aggregate::QueryHistory as DomainQueryHistory;
 use sql_admin_domain::history::repository::QueryHistoryRepository;
 use sql_admin_domain::shared::event::DomainEvent;
 use tokio::sync::broadcast;
-use tracing::{info, warn};
+use tracing::{info, warn, error};
 
 pub async fn start_history_recorder_consumer(
     mut rx: broadcast::Receiver<DomainEvent>,
@@ -14,14 +14,16 @@ pub async fn start_history_recorder_consumer(
             Ok(event) => match event {
                 DomainEvent::QueryExecuted {
                     connection_id,
+                    connection_name,
+                    query_text,
                     execution_time_ms,
                     success,
                     ..
                 } => {
                     let (history, _events) = DomainQueryHistory::create(
                         connection_id.clone(),
-                        String::new(),
-                        String::new(),
+                        connection_name,
+                        query_text,
                         Some(execution_time_ms),
                         None,
                         success,
@@ -67,10 +69,10 @@ pub async fn start_history_recorder_consumer(
                 _ => {}
             },
             Err(broadcast::error::RecvError::Lagged(n)) => {
-                info!(
+                error!(
                     module = "event_consumer::history_recorder",
                     skipped = n,
-                    "History recorder consumer lagged behind"
+                    "History recorder consumer lagged behind, some query history records may be lost"
                 );
             }
             Err(broadcast::error::RecvError::Closed) => {

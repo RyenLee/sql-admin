@@ -264,6 +264,116 @@ RUST_LOG=debug cargo run -p sql-admin-interfaces
 
 ## Development
 
+### Quick Start Scripts
+
+项目提供了一键调试脚本，支持多种运行模式：
+
+| 脚本 | 功能 | 适用场景 |
+|------|------|----------|
+| `scripts/dev.ps1` | 一键启动（自动选择模式） | 日常开发首选 |
+| `scripts/start-desktop.ps1` | 桌面应用调试 | Tauri 桌面开发 |
+| `scripts/start-backend.ps1` | 后端单独调试 | API 开发 |
+| `scripts/start-frontend.ps1` | 前端单独调试 | UI 开发 |
+| `scripts/build-desktop.ps1` | 桌面应用构建 | 生产打包 |
+
+### Development Modes
+
+#### 1. Desktop Mode（桌面模式）
+
+桌面应用通过 Tauri IPC 调用 API，无需单独启动后端：
+
+```bash
+# 方式一：使用一键脚本（推荐）
+.\scripts\dev.ps1                       # 默认 desktop 模式
+.\scripts\dev.ps1 -Mode desktop         # 显式指定
+
+# 方式二：直接启动
+.\scripts\start-desktop.ps1             # 开发模式
+.\scripts\start-desktop.ps1 -Release    # 发布模式
+```
+
+**特性**：
+- 自动检查工具链依赖（tauri-cli、trunk、wasm32 target）
+- 自动编译 Tailwind CSS
+- 支持热重载（首次编译较慢，约 5-10 分钟）
+- SQLite 数据库存储在系统 AppData 目录
+
+#### 2. Web Mode（Web 单进程模式）
+
+前端构建后嵌入到 Axum 服务中，单进程运行：
+
+```bash
+.\scripts\dev.ps1 -Mode web
+```
+
+**特性**：
+- 自动构建前端 WASM
+- 后端服务同时提供 API 和静态文件服务
+- 访问地址：`http://localhost:3000`
+
+#### 3. Web-Dev Mode（Web 开发模式）
+
+前后端独立运行，支持双向热重载：
+
+```bash
+.\scripts\dev.ps1 -Mode web-dev
+```
+
+**特性**：
+- 后端：`http://localhost:3000`（自动启动）
+- 前端：`http://localhost:8080`（Trunk 热重载）
+- 自动等待后端就绪后启动前端
+- 前端退出时自动清理后端进程
+
+### Manual Development（手动调试）
+
+如需更细粒度的控制，可以手动启动：
+
+```bash
+# Terminal 1: 启动后端（带热重载）
+cargo watch -x 'run -p sql-admin-interfaces'
+
+# Terminal 2: 启动前端（带热重载）
+cd crates/frontend
+npm run build:css
+trunk serve --port 8080
+```
+
+### Debugging Tips
+
+**1. 查看详细日志**
+
+```bash
+# Web 模式
+RUST_LOG=debug cargo run -p sql-admin-interfaces
+
+# 桌面模式（在 Tauri 窗口中查看）
+# 按 Ctrl+Shift+I 打开开发者工具
+```
+
+**2. 检查工具链**
+
+```bash
+# 检查 tauri-cli
+cargo tauri --version
+
+# 检查 trunk
+trunk --version
+
+# 检查 wasm32 target
+rustup target list --installed
+```
+
+**3. 清理构建缓存**
+
+```bash
+# 清理所有构建缓存
+cargo clean
+
+# 清理前端缓存
+cd crates/frontend && rm -rf dist .trunk
+```
+
 ### Running Tests
 
 ```bash

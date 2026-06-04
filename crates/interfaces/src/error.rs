@@ -1,7 +1,9 @@
 use axum::{
     http::StatusCode,
     response::{IntoResponse, Response},
+    Json,
 };
+use sql_admin_api_types::ApiResponse;
 use sql_admin_domain::shared::application_error::ApplicationError;
 
 #[derive(Debug)]
@@ -13,14 +15,16 @@ impl IntoResponse for AppErrorResponse {
             ApplicationError::Domain(_) => (StatusCode::BAD_REQUEST, self.0.to_string()),
             ApplicationError::Infrastructure(_) => {
                 tracing::error!(error = %self.0, "Infrastructure error");
-                (StatusCode::INTERNAL_SERVER_ERROR, self.0.to_string())
+                // Don't expose internal details to clients
+                (StatusCode::INTERNAL_SERVER_ERROR, "Internal server error".to_string())
             }
             ApplicationError::NotFound(msg) => (StatusCode::NOT_FOUND, msg.clone()),
             ApplicationError::Validation(msg) => (StatusCode::BAD_REQUEST, msg.clone()),
             ApplicationError::Unauthorized => (StatusCode::UNAUTHORIZED, "Unauthorized".to_string()),
         };
 
-        (status, message).into_response()
+        let body = ApiResponse::<()>::err(&message);
+        (status, Json(body)).into_response()
     }
 }
 

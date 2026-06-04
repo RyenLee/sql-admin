@@ -26,6 +26,16 @@ pub trait QueryExecutor: Send + Sync {
     async fn execute_dml(&self, sql: &str) -> Result<DmlResult, InfrastructureError>;
     async fn get_schema(&self) -> Result<Vec<TableInfo>, InfrastructureError>;
     async fn get_table_definition(&self, table_name: &str) -> Result<TableDefinition, InfrastructureError>;
+    async fn get_all_table_definitions(&self) -> Result<Vec<TableDefinition>, InfrastructureError> {
+        let schema = self.get_schema().await?;
+        let mut defs = Vec::with_capacity(schema.len());
+        for t in &schema {
+            if let Ok(def) = self.get_table_definition(&t.name).await {
+                defs.push(def);
+            }
+        }
+        Ok(defs)
+    }
 }
 
 #[derive(Clone, Debug, Serialize, Deserialize)]
@@ -71,7 +81,7 @@ pub trait RedbExecutor: Send + Sync {
     async fn list_redb_tables(
         &self,
         connection_id: &str,
-    ) -> Result<Vec<(String, u64)>, InfrastructureError>;
+    ) -> Result<Vec<(String, u64, u64)>, InfrastructureError>;
 
     async fn query_redb_keys(
         &self,

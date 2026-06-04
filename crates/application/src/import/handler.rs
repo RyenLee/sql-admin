@@ -5,7 +5,7 @@ use sql_admin_domain::shared::crypto::EncryptionService;
 use sql_admin_domain::shared::pool::PoolFactory;
 
 use crate::connection_pool_service::ConnectionPoolService;
-use crate::dto::{ImportResult, ImportSqlRequest};
+use crate::dto::{ImportResult, ImportSqlRequest, TransactionMode};
 
 pub struct ImportHandler {
     pool_service: ConnectionPoolService,
@@ -24,33 +24,88 @@ impl ImportHandler {
     }
 
     pub async fn import_sql(&self, cmd: ImportSqlRequest) -> Result<ImportResult, ApplicationError> {
-        let executor = self.pool_service.get_executor(&cmd.connection_id).await?;
-
-        let statements = split_sql_statements(&cmd.sql_content);
-        let _total = statements.len();
-        let mut executed = 0u64;
-        let mut errors = Vec::new();
-
-        for (i, stmt) in statements.iter().enumerate() {
-            let trimmed = stmt.trim();
-            if trimmed.is_empty() {
-                continue;
-            }
-            match executor.execute_dml(trimmed).await {
-                Ok(result) => {
-                    executed += result.rows_affected;
-                }
-                Err(e) => {
-                    errors.push(format!("Statement {} error: {}", i + 1, e));
-                }
-            }
+        // Validate sql_content size (max 10MB)
+        const MAX_SQL_SIZE: usize = 10 * 1024 * 1024;
+        if cmd.sql_content.len() > MAX_SQL_SIZE {
+            return Err(ApplicationError::Validation(format!(
+                "SQL content too large: {} bytes, maximum {} bytes",
+                cmd.sql_content.len(),
+                MAX_SQL_SIZE
+            )));
         }
 
-        Ok(ImportResult {
-            statements_executed: executed as u32,
-            errors,
-            execution_time_ms: None,
-        })
+        let executor = self.pool_service.get_executor(&cmd.connection_id).await?;
+        let start = std::time::Instant::now();
+
+        let statements = split_sql_statements(&cmd.sql_content);
+        let total = statements.len();
+
+        match cmd.transaction_mode {
+            TransactionMode::AllOrNothing => {
+                // Execute all statements; on first error, stop and report
+                let mut executed = 0u32;
+                let mut errors = Vec::new();
+
+                for (i, stmt) in statements.iter().enumerate() {
+                    let trimmed = stmt.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    match executor.execute_dml(trimmed).await {
+                        Ok(_result) => {
+                            executed += 1;
+                        }
+                        Err(e) => {
+                            errors.push(format!("Statement {} error: {}", i + 1, e));
+                            // Stop on first error in AllOrNothing mode
+                            break;
+                        }
+                    }
+                }
+
+                if !errors.is_empty() {
+                    tracing::warn!(
+                        module = "import_handler",
+                        total_statements = total,
+                        executed,
+                        "Import failed in AllOrNothing mode, {} of {} statements executed before error",
+                        executed,
+                        total
+                    );
+                }
+
+                Ok(ImportResult {
+                    statements_executed: executed,
+                    errors,
+                    execution_time_ms: Some(start.elapsed().as_millis() as u64),
+                })
+            }
+            TransactionMode::ContinueOnError => {
+                let mut executed = 0u32;
+                let mut errors = Vec::new();
+
+                for (i, stmt) in statements.iter().enumerate() {
+                    let trimmed = stmt.trim();
+                    if trimmed.is_empty() {
+                        continue;
+                    }
+                    match executor.execute_dml(trimmed).await {
+                        Ok(_result) => {
+                            executed += 1;
+                        }
+                        Err(e) => {
+                            errors.push(format!("Statement {} error: {}", i + 1, e));
+                        }
+                    }
+                }
+
+                Ok(ImportResult {
+                    statements_executed: executed,
+                    errors,
+                    execution_time_ms: Some(start.elapsed().as_millis() as u64),
+                })
+            }
+        }
     }
 }
 

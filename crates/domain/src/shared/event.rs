@@ -19,6 +19,8 @@ pub enum DomainEvent {
     },
     QueryExecuted {
         connection_id: String,
+        connection_name: String,
+        query_text: String,
         query_hash: String,
         execution_time_ms: u64,
         success: bool,
