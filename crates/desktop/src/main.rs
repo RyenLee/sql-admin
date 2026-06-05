@@ -1,18 +1,20 @@
-use std::sync::Arc;
+#![windows_subsystem = "windows"]
+
 use sql_admin_application::app_state::AppState;
 use sql_admin_application::connection::handler::ConnectionHandler;
 use sql_admin_application::connection_pool_service::ConnectionPoolService;
-use sql_admin_application::query::handler::QueryHandler;
 use sql_admin_application::data_edit::handler::DataEditHandler;
 use sql_admin_application::history::handler::HistoryHandler;
 use sql_admin_application::import::handler::ImportHandler;
+use sql_admin_application::query::handler::QueryHandler;
 use sql_admin_application::redb::handler::RedbHandler;
 use sql_admin_infrastructure::crypto::aes_gcm::AesGcmEncryptionService;
+use sql_admin_infrastructure::event_bus::consumers::{history_recorder, pool_invalidation};
+use sql_admin_infrastructure::event_bus::in_memory::InMemoryEventBus;
 use sql_admin_infrastructure::persistence::sqlite_connection_repo::SqliteConnectionRepository;
 use sql_admin_infrastructure::persistence::sqlite_history_repo::SqliteQueryHistoryRepository;
 use sql_admin_infrastructure::pool::factory::CachedDomainPoolFactory;
-use sql_admin_infrastructure::event_bus::in_memory::InMemoryEventBus;
-use sql_admin_infrastructure::event_bus::consumers::{history_recorder, pool_invalidation};
+use std::sync::Arc;
 use tauri::Manager;
 
 mod commands;
@@ -41,7 +43,8 @@ pub fn run() {
 
             // Create tokio runtime (leaked to keep alive for the app lifetime)
             let rt = Box::leak(Box::new(
-                tokio::runtime::Runtime::new().map_err(|e| format!("Failed to create tokio runtime: {}", e))?,
+                tokio::runtime::Runtime::new()
+                    .map_err(|e| format!("Failed to create tokio runtime: {}", e))?,
             ));
 
             let app_state = rt.block_on(async {
@@ -113,7 +116,12 @@ pub fn run() {
                         event_bus.clone(),
                     ),
                     HistoryHandler::new(history_repo),
-                    DataEditHandler::new(conn_repo.clone(), pool_factory.clone(), crypto.clone(), event_bus),
+                    DataEditHandler::new(
+                        conn_repo.clone(),
+                        pool_factory.clone(),
+                        crypto.clone(),
+                        event_bus,
+                    ),
                     ImportHandler::new(conn_repo.clone(), pool_factory.clone(), crypto.clone()),
                     RedbHandler::new(conn_repo, pool_factory, redb_executor, crypto),
                 ))
@@ -148,7 +156,8 @@ pub fn run() {
             commands::redb_browser::batch_delete_redb_keys,
         ])
         .run(tauri::generate_context!())
-        .map_err(|e| tracing::error!("Application error: {}", e)).unwrap_or(());
+        .map_err(|e| tracing::error!("Application error: {}", e))
+        .unwrap_or(());
 }
 
 fn main() {

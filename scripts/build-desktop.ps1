@@ -86,6 +86,11 @@ Pop-Location
 
 # ---- Build ----
 Write-Host ""
+
+# Set release log level to ERROR
+$env:RUST_LOG = "error"
+Write-Host "  Log level: ERROR (release build)" -ForegroundColor Gray
+
 if ($SkipBundle) {
     Write-Host "[BUILD] Compiling desktop app (no bundle)..." -ForegroundColor Yellow
     cargo build -p sql-admin-desktop --release
@@ -98,17 +103,17 @@ if ($SkipBundle) {
         Write-Host "  Output: $exePath" -ForegroundColor Green
     }
 } else {
-    $targetArg = ""
+    $buildArgs = @("build")
     if ($Target -eq "nsis") {
-        $targetArg = "--bundles nsis"
+        $buildArgs += "--bundles", "nsis"
     } elseif ($Target -eq "msi") {
-        $targetArg = "--bundles msi"
+        $buildArgs += "--bundles", "msi"
     }
 
     Write-Host "[BUILD] Building Tauri app (target: $Target)..." -ForegroundColor Yellow
     Push-Location crates/desktop
     try {
-        cargo tauri build $targetArg
+        cargo tauri $buildArgs
         if ($LASTEXITCODE -ne 0) {
             Write-Host "[FAIL] Build failed" -ForegroundColor Red
             exit $LASTEXITCODE
