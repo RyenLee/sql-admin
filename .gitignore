@@ -1,5 +1,4 @@
 /target/
-/Cargo.lock
 .env
 .DS_Store
 /logs/
@@ -8,5 +7,5 @@
 node_modules/
 crates/frontend/dist/
 docs/*
-.trae/
+/.trae/
 

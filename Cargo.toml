@@ -1,17 +1,26 @@
 [workspace]
 resolver = "2"
-members = ["crates/api-types", "crates/frontend", "crates/shared", "crates/domain", "crates/infrastructure", "crates/application", "crates/interfaces", "crates/desktop"]
+members = [
+    "crates/api-types",
+    "crates/frontend",
+    "crates/shared",
+    "crates/domain",
+    "crates/infrastructure",
+    "crates/application",
+    "crates/interfaces",
+    "crates/desktop",
+]
 
 [workspace.package]
 version = "1.1.0"
 edition = "2024"
-rust-version = "1.95"
+rust-version = "1.97"
 
 [workspace.dependencies]
 tokio = { version = "1.52.3", features = ["full"] }
 serde = { version = "1.0.228", features = ["derive"] }
 serde_json = "1.0.150"
-anyhow = "1.0.102"
+anyhow = "1.0.103"
 thiserror = "2.0.18"
 
 axum = "0.8.9"
@@ -36,14 +45,14 @@ tracing = "0.1.44"
 tracing-subscriber = { version = "0.3.23", features = ["env-filter", "json"] }
 tracing-appender = "0.2.5"
 
-uuid = { version = "1.23.2", features = ["serde", "v4", "js"] }
-chrono = { version = "0.4.44", features = ["serde"] }
+uuid = { version = "1.23.5", features = ["serde", "v4", "v7", "js"] }
+chrono = { version = "0.4.45", features = ["serde"] }
 
-leptos = { version = "0.8.19", features = ["csr"] }
-leptos_router = "0.8.13"
+leptos = { version = "0.8.20", features = ["csr"] }
+leptos_router = "0.8.14"
 gloo-net = "0.7.0"
 redb = "4.1.0"
-regex = "1.12.3"
+regex = "1.13.0"
 
 [profile.release]
 opt-level = "z"

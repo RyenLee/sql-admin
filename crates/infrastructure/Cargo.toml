@@ -14,7 +14,7 @@ tokio = { workspace = true, features = ["sync"] }
 tracing = { workspace = true }
 aes-gcm = "0.10.3"
 base64 = "0.22.1"
-getrandom = "0.4.2"
+getrandom = "0.4.3"
 redb = { workspace = true }
 async-trait = "0.1.89"
 chrono = { workspace = true }

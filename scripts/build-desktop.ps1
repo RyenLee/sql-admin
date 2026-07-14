@@ -58,8 +58,15 @@ $wasmTarget = rustup target list --installed 2>&1 | Select-String "wasm32-unknow
 if ($wasmTarget) {
     Write-Host "  wasm32-unknown-unknown: installed" -ForegroundColor Gray
 } else {
-    Write-Host "  [FAIL] wasm32-unknown-unknown not installed. Run: rustup target add wasm32-unknown-unknown" -ForegroundColor Red
-    $allOk = $false
+    Write-Host "  [WARN] wasm32-unknown-unknown not installed. Attempting to install..." -ForegroundColor Yellow
+    rustup target add wasm32-unknown-unknown 2>&1
+    if ($LASTEXITCODE -eq 0) {
+        Write-Host "  wasm32-unknown-unknown: installed successfully" -ForegroundColor Gray
+    } else {
+        Write-Host "  [FAIL] Failed to install wasm32-unknown-unknown" -ForegroundColor Red
+        Write-Host "  Please install manually with: rustup target add wasm32-unknown-unknown" -ForegroundColor Red
+        $allOk = $false
+    }
 }
 
 if (-not $allOk) {

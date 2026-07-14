@@ -151,21 +151,15 @@ pub fn DatabaseSidebar() -> impl IntoView {
     };
 
     let refresh_connections = {
-        let app_state = app_state.clone();
-        let rt = refresh_trigger.clone();
         let cons = connections.clone();
-        move || {
+        move |_| {
             set_refreshing.set(true);
             set_refresh_error.set(None);
             spawn_local(async move {
                 match client::list_connections().await {
                     Ok(conns) => {
-                        if let Some(ref s) = app_state {
-                            s.connections.set(conns);
-                        } else {
-                            cons.set(conns);
-                        }
-                        rt.update(|v| *v = v.wrapping_add(1));
+                        cons.set(conns);
+                        refresh_trigger.update(|v| *v = v.wrapping_add(1));
                     }
                     Err(e) => {
                         set_refresh_error.set(Some(format!("Failed to refresh connections: {}", e)));
@@ -187,19 +181,16 @@ pub fn DatabaseSidebar() -> impl IntoView {
                         title="Refresh connections"
                         on:click=refresh_connections
                     >
-                        {move || if refreshing.get() {
-                            view! { <span class="text-xs">"⟳"</span> }.into_any()
-                        } else {
-                            view! { <span class="text-sm">"↻"</span> }.into_any()
-                        }}
+                        {if refreshing.get() { "⟳" } else { "↻" }}
                     </button>
-                    {move || if refreshing.get() {
-                        view! {
-                            <span class="text-xs text-gray-400 animate-pulse">"Refreshing..."</span>
-                        }.into_any()
-                    } else {
-                        let _: () = view! {};
-                        ().into_any()
+                    {move || {
+                        if refreshing.get() {
+                            view! {
+                                <span class="text-xs text-gray-400 animate-pulse">"Refreshing..."</span>
+                            }.into_any()
+                        } else {
+                            ().into_any()
+                        }
                     }}
                 </div>
             </div>
